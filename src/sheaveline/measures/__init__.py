@@ -13,10 +13,17 @@ from sheaveline.measures.length import (
     ZERO_LENGTH,
     Length,
 )
+from sheaveline.measures.load import (
+    PASSENGER_DESIGN_LOAD,
+    ZERO_LOAD,
+    Load,
+    LoadPerFoot,
+)
 from sheaveline.measures.speed import STOPPED, Speed
 
 __all__ = [
     "INCHES_PER_FOOT",
+    "PASSENGER_DESIGN_LOAD",
     "MILS_PER_FOOT",
     "MILS_PER_INCH",
     "SECONDS_PER_HOUR",
@@ -24,7 +31,10 @@ __all__ = [
     "STOPPED",
     "ZERO_DURATION",
     "ZERO_LENGTH",
+    "ZERO_LOAD",
     "Duration",
     "Length",
+    "Load",
+    "LoadPerFoot",
     "Speed",
 ]
