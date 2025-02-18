@@ -1,5 +1,13 @@
 """The measured quantities the lift department writes down."""
 
+from sheaveline.measures.angle import (
+    COMPASS_POINTS,
+    FULL_CIRCLE,
+    MILLIDEGREES_PER_DEGREE,
+    ZERO_ANGLE,
+    Angle,
+    Bearing,
+)
 from sheaveline.measures.duration import (
     SECONDS_PER_HOUR,
     SECONDS_PER_MINUTE,
@@ -22,16 +30,22 @@ from sheaveline.measures.load import (
 from sheaveline.measures.speed import STOPPED, Speed
 
 __all__ = [
+    "COMPASS_POINTS",
+    "FULL_CIRCLE",
     "INCHES_PER_FOOT",
-    "PASSENGER_DESIGN_LOAD",
+    "MILLIDEGREES_PER_DEGREE",
     "MILS_PER_FOOT",
     "MILS_PER_INCH",
+    "PASSENGER_DESIGN_LOAD",
     "SECONDS_PER_HOUR",
     "SECONDS_PER_MINUTE",
     "STOPPED",
+    "ZERO_ANGLE",
     "ZERO_DURATION",
     "ZERO_LENGTH",
     "ZERO_LOAD",
+    "Angle",
+    "Bearing",
     "Duration",
     "Length",
     "Load",
