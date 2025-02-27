@@ -5,6 +5,9 @@ drawings and the board's forms use feet per minute, and the manufacturer's
 manuals use metres per second because the machinery came from the Alps. Mils
 per minute is small enough that a round trip through either face comes back
 where it started.
+
+Wind is the same dimension and the summit station reports it in miles an hour,
+so that face lives here too rather than in a second speed type.
 """
 
 from __future__ import annotations
@@ -18,11 +21,14 @@ from sheaveline.measures.duration import SECONDS_PER_MINUTE, Duration
 from sheaveline.measures.length import MILS_PER_FOOT, Length
 
 MILS_PER_METRE: Final = Decimal("39370.078740157480315")
+MILS_PER_MILE: Final = 63_360_000
 _MILS_PER_MINUTE_PER_MPS: Final = MILS_PER_METRE * SECONDS_PER_MINUTE
+_MILS_PER_MINUTE_PER_MPH: Final = Decimal(MILS_PER_MILE) / 60
 
 _SPEED = re.compile(
     r"""^\s*(?P<value>-?\d+(?:\.\d+)?)\s*
-    (?P<unit>fpm|ft/min|feet\s*per\s*minute|m/s|mps|metres?\s*per\s*second)\s*$""",
+    (?P<unit>fpm|ft/min|feet\s*per\s*minute|m/s|mps|metres?\s*per\s*second
+    |mph|mi/h|miles\s*per\s*hour)\s*$""",
     re.VERBOSE | re.IGNORECASE,
 )
 
@@ -51,6 +57,10 @@ class Speed:
     def metres_per_second(self) -> Decimal:
         return Decimal(self._mils_per_minute) / _MILS_PER_MINUTE_PER_MPS
 
+    @property
+    def miles_per_hour(self) -> Decimal:
+        return Decimal(self._mils_per_minute) / _MILS_PER_MINUTE_PER_MPH
+
     @classmethod
     def from_feet_per_minute(cls, fpm: int | float | str | Decimal) -> Speed:
         return cls(_round_half_up(Decimal(str(fpm)) * MILS_PER_FOOT))
@@ -58,6 +68,10 @@ class Speed:
     @classmethod
     def from_metres_per_second(cls, mps: int | float | str | Decimal) -> Speed:
         return cls(_round_half_up(Decimal(str(mps)) * _MILS_PER_MINUTE_PER_MPS))
+
+    @classmethod
+    def from_miles_per_hour(cls, mph: int | float | str | Decimal) -> Speed:
+        return cls(_round_half_up(Decimal(str(mph)) * _MILS_PER_MINUTE_PER_MPH))
 
     @classmethod
     def from_mils_per_minute(cls, mils: int) -> Speed:
@@ -72,6 +86,8 @@ class Speed:
         value = match.group("value")
         if unit.startswith(("m/s", "mps", "metre", "meter")):
             return cls.from_metres_per_second(value)
+        if unit.startswith(("mph", "mi/h", "mile")):
+            return cls.from_miles_per_hour(value)
         return cls.from_feet_per_minute(value)
 
     def travel(self, elapsed: Duration) -> Length:
@@ -93,6 +109,10 @@ class Speed:
     def format_mps(self, places: int = 2) -> str:
         quant = Decimal(1).scaleb(-places)
         return f"{self.metres_per_second.quantize(quant)} m/s"
+
+    def format_mph(self, places: int = 0) -> str:
+        quant = Decimal(1).scaleb(-places)
+        return f"{self.miles_per_hour.quantize(quant)} mph"
 
     def __repr__(self) -> str:
         return f"Speed.from_mils_per_minute({self._mils_per_minute})"

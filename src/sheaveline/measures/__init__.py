@@ -27,16 +27,21 @@ from sheaveline.measures.load import (
     Load,
     LoadPerFoot,
 )
-from sheaveline.measures.speed import STOPPED, Speed
+from sheaveline.measures.speed import MILS_PER_MILE, STOPPED, Speed
 from sheaveline.measures.temperature import (
     FREEZING,
     Temperature,
     TemperatureDelta,
 )
+from sheaveline.measures.wind import (
+    CALM,
+    Wind,
+)
 
 __all__ = [
     "Angle",
     "Bearing",
+    "CALM",
     "COMPASS_POINTS",
     "Duration",
     "FREEZING",
@@ -48,6 +53,7 @@ __all__ = [
     "MILLIDEGREES_PER_DEGREE",
     "MILS_PER_FOOT",
     "MILS_PER_INCH",
+    "MILS_PER_MILE",
     "PASSENGER_DESIGN_LOAD",
     "SECONDS_PER_HOUR",
     "SECONDS_PER_MINUTE",
@@ -55,6 +61,7 @@ __all__ = [
     "Speed",
     "Temperature",
     "TemperatureDelta",
+    "Wind",
     "ZERO_ANGLE",
     "ZERO_DURATION",
     "ZERO_LENGTH",

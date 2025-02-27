@@ -44,7 +44,7 @@ def test_parse_reads_the_metric_face():
     assert Speed.parse("2.5mps") == Speed.from_metres_per_second("2.5")
 
 
-@pytest.mark.parametrize("text", ["", "fast", "500", "500 mph", "5 m/min"])
+@pytest.mark.parametrize("text", ["", "fast", "500", "5 m/min", "500 knots"])
 def test_parse_refuses_what_is_not_a_speed(text):
     with pytest.raises(ParseError):
         Speed.parse(text)
