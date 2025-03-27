@@ -14,8 +14,15 @@ from sheaveline.plant.identity import (
     RopeSerial,
     TowerRef,
 )
+from sheaveline.plant.tower import (
+    AssemblyKind,
+    SheaveAssembly,
+    Tower,
+    TowerLine,
+)
 
 __all__ = [
+    "AssemblyKind",
     "CarrierType",
     "DriveType",
     "FilingNumber",
@@ -24,6 +31,9 @@ __all__ = [
     "LiftCode",
     "PlantError",
     "RopeSerial",
+    "SheaveAssembly",
     "TerminalRole",
+    "Tower",
+    "TowerLine",
     "TowerRef",
 ]
