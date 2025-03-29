@@ -14,6 +14,12 @@ from sheaveline.plant.identity import (
     RopeSerial,
     TowerRef,
 )
+from sheaveline.plant.span import (
+    Span,
+    SpanLine,
+    Support,
+    SupportKind,
+)
 from sheaveline.plant.tower import (
     AssemblyKind,
     SheaveAssembly,
@@ -32,6 +38,10 @@ __all__ = [
     "PlantError",
     "RopeSerial",
     "SheaveAssembly",
+    "Span",
+    "SpanLine",
+    "Support",
+    "SupportKind",
     "TerminalRole",
     "Tower",
     "TowerLine",
