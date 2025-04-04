@@ -14,6 +14,11 @@ from sheaveline.plant.identity import (
     RopeSerial,
     TowerRef,
 )
+from sheaveline.plant.profile import (
+    Clearance,
+    GroundPoint,
+    LineProfile,
+)
 from sheaveline.plant.span import (
     Span,
     SpanLine,
@@ -30,11 +35,14 @@ from sheaveline.plant.tower import (
 __all__ = [
     "AssemblyKind",
     "CarrierType",
+    "Clearance",
     "DriveType",
     "FilingNumber",
     "GripType",
+    "GroundPoint",
     "LiftClass",
     "LiftCode",
+    "LineProfile",
     "PlantError",
     "RopeSerial",
     "SheaveAssembly",
