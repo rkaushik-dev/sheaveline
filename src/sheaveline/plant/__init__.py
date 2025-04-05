@@ -25,6 +25,13 @@ from sheaveline.plant.span import (
     Support,
     SupportKind,
 )
+from sheaveline.plant.terminal import (
+    Brake,
+    BrakeKind,
+    Bullwheel,
+    DriveTrain,
+    Terminal,
+)
 from sheaveline.plant.tower import (
     AssemblyKind,
     SheaveAssembly,
@@ -34,8 +41,12 @@ from sheaveline.plant.tower import (
 
 __all__ = [
     "AssemblyKind",
+    "Brake",
+    "BrakeKind",
+    "Bullwheel",
     "CarrierType",
     "Clearance",
+    "DriveTrain",
     "DriveType",
     "FilingNumber",
     "GripType",
@@ -50,6 +61,7 @@ __all__ = [
     "SpanLine",
     "Support",
     "SupportKind",
+    "Terminal",
     "TerminalRole",
     "Tower",
     "TowerLine",
