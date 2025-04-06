@@ -1,5 +1,10 @@
 """The installation itself, from the lift record down to the sheave assembly."""
 
+from sheaveline.plant.carrier import (
+    Carrier,
+    CarrierSet,
+    Grip,
+)
 from sheaveline.plant.classes import (
     CarrierType,
     DriveType,
@@ -44,11 +49,14 @@ __all__ = [
     "Brake",
     "BrakeKind",
     "Bullwheel",
+    "Carrier",
+    "CarrierSet",
     "CarrierType",
     "Clearance",
     "DriveTrain",
     "DriveType",
     "FilingNumber",
+    "Grip",
     "GripType",
     "GroundPoint",
     "LiftClass",
