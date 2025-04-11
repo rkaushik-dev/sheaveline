@@ -24,6 +24,13 @@ from sheaveline.plant.profile import (
     GroundPoint,
     LineProfile,
 )
+from sheaveline.plant.rope import (
+    HaulRope,
+    LayDirection,
+    RopeConstruction,
+    RopeGrade,
+    RopeSpec,
+)
 from sheaveline.plant.span import (
     Span,
     SpanLine,
@@ -59,11 +66,16 @@ __all__ = [
     "Grip",
     "GripType",
     "GroundPoint",
+    "HaulRope",
+    "LayDirection",
     "LiftClass",
     "LiftCode",
     "LineProfile",
     "PlantError",
+    "RopeConstruction",
+    "RopeGrade",
     "RopeSerial",
+    "RopeSpec",
     "SheaveAssembly",
     "Span",
     "SpanLine",
