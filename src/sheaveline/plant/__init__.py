@@ -19,6 +19,7 @@ from sheaveline.plant.identity import (
     RopeSerial,
     TowerRef,
 )
+from sheaveline.plant.lift import Lift
 from sheaveline.plant.profile import (
     Clearance,
     GroundPoint,
@@ -68,6 +69,7 @@ __all__ = [
     "GroundPoint",
     "HaulRope",
     "LayDirection",
+    "Lift",
     "LiftClass",
     "LiftCode",
     "LineProfile",
