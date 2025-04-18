@@ -24,6 +24,7 @@ from sheaveline.plant.classes import (
 from sheaveline.plant.identity import LiftCode, RopeSerial
 from sheaveline.plant.lift import Lift
 from sheaveline.plant.profile import LineProfile
+from sheaveline.plant.registry import Resort
 from sheaveline.plant.rope import (
     HaulRope,
     LayDirection,
@@ -33,6 +34,8 @@ from sheaveline.plant.rope import (
 )
 from sheaveline.plant.terminal import Brake, BrakeKind, Bullwheel, DriveTrain, Terminal
 from sheaveline.plant.tower import AssemblyKind, SheaveAssembly, Tower, TowerLine
+from sheaveline.schedule.daylight import Site
+from sheaveline.schedule.season import HolidayPeriod, Season
 
 JOHN_PAUL = LiftCode("JP")
 STRAWBERRY = LiftCode("SB")
@@ -179,3 +182,221 @@ def john_paul(**overrides: object) -> Lift:
     }
     fields.update(overrides)
     return Lift(**fields)  # type: ignore[arg-type]
+
+
+SB_SURVEY = [
+    (0, 6400),
+    (400, 6460),
+    (800, 6530),
+    (1200, 6610),
+    (1600, 6700),
+    (2000, 6790),
+]
+
+WC_SURVEY = [
+    (0, 6390),
+    (200, 6420),
+    (400, 6455),
+    (600, 6492),
+]
+
+
+def sb_towers() -> TowerLine:
+    layout = [(1, 400, 6460, 26), (2, 900, 6545, 30), (3, 1500, 6675, 24)]
+    return TowerLine(
+        [
+            Tower(
+                ref=STRAWBERRY.tower(number),
+                station=Length.from_feet(station),
+                base_elevation=Length.from_feet(base),
+                height=Length.from_feet(height),
+                uphill=support_assembly(),
+                downhill=support_assembly(),
+            )
+            for number, station, base, height in layout
+        ]
+    )
+
+
+def sb_carriers(count: int = 46) -> CarrierSet:
+    grip = Grip(
+        kind=GripType.FIXED,
+        model="TB41",
+        jaws=2,
+        spring_pack="green",
+        rated_slip=Load.from_pounds(2100),
+        installed=date(2011, 9, 20),
+    )
+    return CarrierSet(
+        [
+            Carrier(
+                number=number,
+                kind=CarrierType.CHAIR_3,
+                tare=Load.from_pounds(295),
+                hanger=Length.from_feet_inches(5, 10),
+                grip=grip,
+                restraining_bar=True,
+            )
+            for number in range(1, count + 1)
+        ]
+    )
+
+
+def strawberry(**overrides: object) -> Lift:
+    """The fixed grip triple over the beginner terrain."""
+    fields: dict[str, object] = {
+        "code": STRAWBERRY,
+        "name": "Strawberry",
+        "lift_class": LiftClass.FIXED_CHAIR,
+        "bearing": Bearing.from_degrees(310),
+        "bottom": Terminal(
+            role=TerminalRole.DRIVE_TENSION,
+            label="Strawberry base",
+            station=Length.from_feet(0),
+            rope_elevation=Length.from_feet(6418),
+            bullwheel=bullwheel(feet=9, inches=0),
+            drive=drive_train(rated_horsepower=310, auxiliary=None),
+            tension_travel=Length.from_feet(9),
+        ),
+        "top": Terminal(
+            role=TerminalRole.RETURN,
+            label="Strawberry top",
+            station=Length.from_feet(2000),
+            rope_elevation=Length.from_feet(6812),
+            bullwheel=bullwheel(feet=9, inches=0),
+        ),
+        "towers": sb_towers(),
+        "carriers": sb_carriers(),
+        "rope": HaulRope(
+            serial=RopeSerial.parse("BRI-2011-01887"),
+            spec=RopeSpec(
+                construction=RopeConstruction.SIX_BY_TWENTY_SIX,
+                grade=RopeGrade.EIP,
+                lay=LayDirection.RIGHT_REGULAR,
+                nominal_diameter=Length.from_inches("1.102"),
+                breaking_strength=Load.from_pounds(124000),
+                weight=LoadPerFoot.from_pounds_per_foot("1.98"),
+            ),
+            installed=date(2011, 9, 20),
+            length=Length.from_feet(4113),
+            splices=1,
+        ),
+        "ground": LineProfile.from_survey(SB_SURVEY),
+        "design_speed": Speed.from_feet_per_minute(450),
+        "commissioned": date(1988, 11, 18),
+    }
+    fields.update(overrides)
+    return Lift(**fields)  # type: ignore[arg-type]
+
+
+def wc_towers() -> TowerLine:
+    layout = [(1, 200, 6420, 18), (2, 450, 6467, 18)]
+    return TowerLine(
+        [
+            Tower(
+                ref=WILDCAT.tower(number),
+                station=Length.from_feet(station),
+                base_elevation=Length.from_feet(base),
+                height=Length.from_feet(height),
+                uphill=support_assembly(2, "0.9"),
+                downhill=support_assembly(2, "0.9"),
+            )
+            for number, station, base, height in layout
+        ]
+    )
+
+
+def wc_carriers(count: int = 22) -> CarrierSet:
+    return CarrierSet(
+        [
+            Carrier(
+                number=number,
+                kind=CarrierType.TBAR,
+                tare=Load.from_pounds(38),
+                hanger=Length.from_feet_inches(11, 0),
+                grip=None,
+                restraining_bar=False,
+            )
+            for number in range(1, count + 1)
+        ]
+    )
+
+
+def wildcat(**overrides: object) -> Lift:
+    """The surface tow at the base area."""
+    fields: dict[str, object] = {
+        "code": WILDCAT,
+        "name": "Wildcat",
+        "lift_class": LiftClass.SURFACE_TOW,
+        "bearing": Bearing.from_degrees(145),
+        "bottom": Terminal(
+            role=TerminalRole.DRIVE,
+            label="Wildcat base",
+            station=Length.from_feet(0),
+            rope_elevation=Length.from_feet(6404),
+            bullwheel=bullwheel(feet=6, inches=6),
+            drive=drive_train(
+                drive_type=DriveType.DIESEL_HYDRAULIC,
+                rated_horsepower=75,
+                brakes=(Brake(BrakeKind.SERVICE, 300),),
+                auxiliary=None,
+            ),
+        ),
+        "top": Terminal(
+            role=TerminalRole.RETURN_TENSION,
+            label="Wildcat top",
+            station=Length.from_feet(600),
+            rope_elevation=Length.from_feet(6506),
+            bullwheel=bullwheel(feet=6, inches=6),
+            tension_travel=Length.from_feet(6),
+        ),
+        "towers": wc_towers(),
+        "carriers": wc_carriers(),
+        "rope": HaulRope(
+            serial=RopeSerial.parse("BRI-2016-00294"),
+            spec=RopeSpec(
+                construction=RopeConstruction.EIGHT_BY_NINETEEN,
+                grade=RopeGrade.IPS,
+                lay=LayDirection.RIGHT_REGULAR,
+                nominal_diameter=Length.from_inches("0.625"),
+                breaking_strength=Load.from_pounds(35000),
+                weight=LoadPerFoot.from_pounds_per_foot("0.63"),
+            ),
+            installed=date(2016, 10, 11),
+            length=Length.from_feet(1238),
+            splices=1,
+        ),
+        "ground": LineProfile.from_survey(WC_SURVEY),
+        "design_speed": Speed.from_feet_per_minute(560),
+        "commissioned": date(1996, 12, 6),
+    }
+    fields.update(overrides)
+    return Lift(**fields)  # type: ignore[arg-type]
+
+
+def the_site() -> Site:
+    return Site("Ogden Peak", 41.216, -111.857, -420)
+
+
+def the_season() -> Season:
+    return Season(
+        label="2024/25",
+        opens=date(2024, 11, 29),
+        closes=date(2025, 4, 20),
+        preview_from=date(2024, 11, 23),
+        spring_from=date(2025, 3, 24),
+        holidays=(
+            HolidayPeriod("christmas", date(2024, 12, 21), date(2025, 1, 1)),
+            HolidayPeriod("presidents", date(2025, 2, 15), date(2025, 2, 23)),
+        ),
+        closures=frozenset({date(2025, 1, 14)}),
+    )
+
+
+def the_resort() -> Resort:
+    return Resort.of(
+        "Ogden Peak",
+        the_site(),
+        the_season(),
+        [john_paul(), strawberry(), wildcat()],
+    )

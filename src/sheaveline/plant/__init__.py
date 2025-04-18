@@ -25,6 +25,7 @@ from sheaveline.plant.profile import (
     GroundPoint,
     LineProfile,
 )
+from sheaveline.plant.registry import Resort
 from sheaveline.plant.rope import (
     HaulRope,
     LayDirection,
@@ -74,6 +75,7 @@ __all__ = [
     "LiftCode",
     "LineProfile",
     "PlantError",
+    "Resort",
     "RopeConstruction",
     "RopeGrade",
     "RopeSerial",
