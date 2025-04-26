@@ -5,6 +5,12 @@ from sheaveline.ropework.breaks import (
     BreakObservation,
     BreakSurvey,
 )
+from sheaveline.ropework.mrt import (
+    Indication,
+    IndicationKind,
+    MagneticTest,
+    TestSchedule,
+)
 from sheaveline.ropework.wear import (
     DiameterReading,
     LayReading,
@@ -18,8 +24,12 @@ __all__ = [
     "BreakObservation",
     "BreakSurvey",
     "DiameterReading",
+    "Indication",
+    "IndicationKind",
     "LayReading",
+    "MagneticTest",
     "RopeworkError",
+    "TestSchedule",
     "WearSurvey",
     "WearVerdict",
 ]
