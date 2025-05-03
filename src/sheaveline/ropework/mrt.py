@@ -136,7 +136,7 @@ class MagneticTest:
 
 
 @dataclass(frozen=True)
-class TestSchedule:
+class RetestSchedule:
     """When the next magnetic test falls due."""
 
     rope: HaulRope
@@ -165,10 +165,10 @@ class TestSchedule:
     def days_until_due(self, on: date) -> int:
         return (self.next_due(on) - on).days
 
-    def after(self, test: MagneticTest) -> TestSchedule:
+    def after(self, test: MagneticTest) -> RetestSchedule:
         if test.rope.serial != self.rope.serial:
             raise RopeworkError("that test is of another rope")
-        return TestSchedule(self.rope, test.taken)
+        return RetestSchedule(self.rope, test.taken)
 
 
 def _add_years(day: date, years: int) -> date:

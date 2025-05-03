@@ -9,11 +9,16 @@ from sheaveline.ropework.mrt import (
     Indication,
     IndicationKind,
     MagneticTest,
-    TestSchedule,
+    RetestSchedule,
 )
 from sheaveline.ropework.splice import (
     Splice,
     SpliceRegister,
+)
+from sheaveline.ropework.tension import (
+    TensionKind,
+    TensionReading,
+    TensionSystem,
 )
 from sheaveline.ropework.wear import (
     DiameterReading,
@@ -35,7 +40,10 @@ __all__ = [
     "RopeworkError",
     "Splice",
     "SpliceRegister",
-    "TestSchedule",
+    "TensionKind",
+    "TensionReading",
+    "TensionSystem",
+    "RetestSchedule",
     "WearSurvey",
     "WearVerdict",
 ]
