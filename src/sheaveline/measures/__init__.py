@@ -33,6 +33,7 @@ from sheaveline.measures.temperature import (
     Temperature,
     TemperatureDelta,
 )
+from sheaveline.measures.torque import Torque
 from sheaveline.measures.wind import (
     CALM,
     Wind,
@@ -61,6 +62,7 @@ __all__ = [
     "Speed",
     "Temperature",
     "TemperatureDelta",
+    "Torque",
     "Wind",
     "ZERO_ANGLE",
     "ZERO_DURATION",

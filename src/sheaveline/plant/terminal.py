@@ -19,6 +19,7 @@ from enum import Enum
 
 from sheaveline.measures.length import Length
 from sheaveline.measures.speed import Speed
+from sheaveline.measures.torque import Torque
 from sheaveline.plant.classes import DriveType, LiftClass, PlantError, TerminalRole
 
 MINIMUM_WRAP_RATIO = 60
@@ -46,17 +47,20 @@ class Brake:
     """One brake on the drive, with the torque it is set to."""
 
     kind: BrakeKind
-    torque_pound_feet: int
+    torque: Torque
     hydraulic: bool = True
 
     def __post_init__(self) -> None:
-        if self.torque_pound_feet <= 0:
+        if self.torque.is_slack():
             raise PlantError(f"a {self.kind.value} brake with no torque is not a brake")
         if self.kind is BrakeKind.BACKSTOP and self.hydraulic:
             raise PlantError("a backstop is mechanical, not hydraulic")
 
+    def holds(self, demand: Torque) -> bool:
+        return self.torque >= demand
+
     def __str__(self) -> str:
-        return f"{self.kind.value} brake at {self.torque_pound_feet} lb ft"
+        return f"{self.kind.value} brake at {self.torque.format_pound_feet()}"
 
 
 @dataclass(frozen=True)

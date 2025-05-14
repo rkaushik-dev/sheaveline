@@ -3,6 +3,7 @@ from decimal import Decimal
 import pytest
 
 from sheaveline.measures.length import Length
+from sheaveline.measures.torque import Torque
 from sheaveline.plant.classes import DriveType, LiftClass, PlantError, TerminalRole
 from sheaveline.plant.terminal import (
     Brake,
@@ -14,9 +15,9 @@ from sheaveline.plant.terminal import (
 )
 
 WHEEL = Bullwheel(Length.from_feet_inches(11, 6), "polyurethane")
-SERVICE = Brake(BrakeKind.SERVICE, 900)
-EMERGENCY = Brake(BrakeKind.EMERGENCY, 2400)
-BACKSTOP = Brake(BrakeKind.BACKSTOP, 1800, hydraulic=False)
+SERVICE = Brake(BrakeKind.SERVICE, Torque.from_pound_feet(900))
+EMERGENCY = Brake(BrakeKind.EMERGENCY, Torque.from_pound_feet(2400))
+BACKSTOP = Brake(BrakeKind.BACKSTOP, Torque.from_pound_feet(1800), hydraulic=False)
 
 
 def drive_train(**overrides):
@@ -33,13 +34,13 @@ def drive_train(**overrides):
 
 def test_a_brake_needs_torque():
     with pytest.raises(PlantError):
-        Brake(BrakeKind.SERVICE, 0)
+        Brake(BrakeKind.SERVICE, Torque.from_pound_feet(0))
     assert str(SERVICE) == "service brake at 900 lb ft"
 
 
 def test_a_backstop_is_mechanical():
     with pytest.raises(PlantError):
-        Brake(BrakeKind.BACKSTOP, 1800)
+        Brake(BrakeKind.BACKSTOP, Torque.from_pound_feet(1800))
     assert not BACKSTOP.hydraulic
 
 
@@ -88,7 +89,9 @@ def test_a_drive_train_always_has_a_service_brake():
 
 def test_a_drive_train_carries_one_brake_of_each_kind():
     with pytest.raises(PlantError):
-        drive_train(brakes=(SERVICE, Brake(BrakeKind.SERVICE, 700), EMERGENCY))
+        drive_train(
+            brakes=(SERVICE, Brake(BrakeKind.SERVICE, Torque.from_pound_feet(700)), EMERGENCY)
+        )
 
 
 def test_a_drive_train_checks_its_own_numbers():

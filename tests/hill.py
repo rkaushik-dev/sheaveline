@@ -13,6 +13,7 @@ from sheaveline.measures.angle import Angle, Bearing
 from sheaveline.measures.length import Length
 from sheaveline.measures.load import Load, LoadPerFoot
 from sheaveline.measures.speed import Speed
+from sheaveline.measures.torque import Torque
 from sheaveline.plant.carrier import Carrier, CarrierSet, Grip
 from sheaveline.plant.classes import (
     CarrierType,
@@ -72,7 +73,10 @@ def drive_train(**overrides: object) -> DriveTrain:
         "drive_type": DriveType.AC_DRIVE,
         "rated_horsepower": 700,
         "gearbox_ratio": Decimal("18.5"),
-        "brakes": (Brake(BrakeKind.SERVICE, 900), Brake(BrakeKind.EMERGENCY, 2400)),
+        "brakes": (
+            Brake(BrakeKind.SERVICE, Torque.from_pound_feet(900)),
+            Brake(BrakeKind.EMERGENCY, Torque.from_pound_feet(2400)),
+        ),
         "auxiliary": DriveType.DIESEL_HYDRAULIC,
     }
     fields.update(overrides)
@@ -338,7 +342,7 @@ def wildcat(**overrides: object) -> Lift:
             drive=drive_train(
                 drive_type=DriveType.DIESEL_HYDRAULIC,
                 rated_horsepower=75,
-                brakes=(Brake(BrakeKind.SERVICE, 300),),
+                brakes=(Brake(BrakeKind.SERVICE, Torque.from_pound_feet(300)),),
                 auxiliary=None,
             ),
         ),
