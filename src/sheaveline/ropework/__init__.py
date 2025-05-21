@@ -11,6 +11,10 @@ from sheaveline.ropework.mrt import (
     MagneticTest,
     RetestSchedule,
 )
+from sheaveline.ropework.retorque import (
+    RetorqueCycle,
+    TorqueCheck,
+)
 from sheaveline.ropework.sliptest import (
     SlipProgramme,
     SlipTest,
@@ -42,6 +46,7 @@ __all__ = [
     "LayReading",
     "MagneticTest",
     "RetestSchedule",
+    "RetorqueCycle",
     "RopeworkError",
     "SlipProgramme",
     "SlipTest",
@@ -50,6 +55,7 @@ __all__ = [
     "TensionKind",
     "TensionReading",
     "TensionSystem",
+    "TorqueCheck",
     "WearSurvey",
     "WearVerdict",
 ]
