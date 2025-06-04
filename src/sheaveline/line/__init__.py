@@ -8,6 +8,12 @@ from sheaveline.line.clearance import (
     GroundUseMap,
     UseSegment,
 )
+from sheaveline.line.deviation import (
+    TowerLoading,
+    arrival_slope,
+    departure_slope,
+    sag_slope,
+)
 
 __all__ = [
     "ClearanceCheck",
@@ -16,6 +22,10 @@ __all__ = [
     "GroundUseMap",
     "LineError",
     "SagModel",
+    "TowerLoading",
     "UseSegment",
+    "arrival_slope",
+    "departure_slope",
     "line_weight",
+    "sag_slope",
 ]
