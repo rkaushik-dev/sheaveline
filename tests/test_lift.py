@@ -40,7 +40,7 @@ def test_the_quad_describes_itself():
 def test_the_line_lengths_come_off_the_terminals_and_the_towers():
     lift = john_paul()
     assert lift.horizontal_length() == Length.from_feet(4800)
-    assert lift.vertical_rise() == Length.from_feet(1526)
+    assert lift.vertical_rise() == Length.from_feet(1540)
     assert lift.slope_length() > lift.horizontal_length()
     assert lift.slope_length().feet.quantize(Length.from_feet(1).feet) > 5000
 

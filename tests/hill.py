@@ -98,27 +98,32 @@ def jp_rope_spec() -> RopeSpec:
     )
 
 
+# Station, base elevation, tower height, and the deviation designed into each
+# side of the crossarm. The two halves add up to what the rope actually does
+# over that tower with the design weight on the line.
+JP_LAYOUT = [
+    (1, 600, 6496, 55, "0.064", "0.064"),
+    (2, 1200, 6700, 45, "3.913", "3.912"),
+    (3, 1800, 6880, 40, "3.398", "3.397"),
+    (4, 2400, 7040, 48, "0.085", "0.084"),
+    (5, 3000, 7280, 46, "3.175", "3.175"),
+    (6, 3600, 7520, 42, "4.268", "4.268"),
+    (7, 4200, 7730, 40, "3.639", "3.639"),
+]
+
+
 def jp_towers() -> TowerLine:
-    layout = [
-        (1, 600, 6496, 34),
-        (2, 1200, 6700, 38),
-        (3, 1800, 6880, 30),
-        (4, 2400, 7040, 42),
-        (5, 3000, 7280, 36),
-        (6, 3600, 7520, 32),
-        (7, 4200, 7730, 28),
-    ]
     towers = []
-    for number, station, base, height in layout:
-        down = hold_down_assembly() if number == 3 else support_assembly()
+    for number, station, base, height, up, down in JP_LAYOUT:
+        sheaves = 6 if number in (4, 5) else 4
         towers.append(
             Tower(
                 ref=JOHN_PAUL.tower(number),
                 station=Length.from_feet(station),
                 base_elevation=Length.from_feet(base),
                 height=Length.from_feet(height),
-                uphill=support_assembly(6 if number in (4, 5) else 4),
-                downhill=down,
+                uphill=support_assembly(sheaves, up),
+                downhill=support_assembly(4, down),
             )
         )
     return TowerLine(towers)
@@ -159,7 +164,7 @@ def john_paul(**overrides: object) -> Lift:
             role=TerminalRole.DRIVE,
             label="John Paul base",
             station=Length.from_feet(0),
-            rope_elevation=Length.from_feet(6412),
+            rope_elevation=Length.from_feet(6425),
             bullwheel=bullwheel(),
             drive=drive_train(),
         ),
@@ -167,7 +172,7 @@ def john_paul(**overrides: object) -> Lift:
             role=TerminalRole.RETURN_TENSION,
             label="John Paul summit",
             station=Length.from_feet(4800),
-            rope_elevation=Length.from_feet(7938),
+            rope_elevation=Length.from_feet(7965),
             bullwheel=bullwheel(),
             tension_travel=Length.from_feet(16),
         ),
@@ -177,7 +182,7 @@ def john_paul(**overrides: object) -> Lift:
             serial=RopeSerial.parse("FAT-2019-04412"),
             spec=jp_rope_spec(),
             installed=date(2019, 10, 4),
-            length=Length.from_feet(10152),
+            length=Length.from_feet(10132),
             splices=1,
         ),
         "ground": LineProfile.from_survey(JP_SURVEY),

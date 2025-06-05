@@ -14,14 +14,24 @@ from sheaveline.line.deviation import (
     departure_slope,
     sag_slope,
 )
+from sheaveline.line.geometry import (
+    Finding,
+    GeometryVerdict,
+    LineGeometry,
+    Severity,
+)
 
 __all__ = [
     "ClearanceCheck",
     "ClearanceReading",
+    "Finding",
+    "GeometryVerdict",
     "GroundUse",
     "GroundUseMap",
     "LineError",
+    "LineGeometry",
     "SagModel",
+    "Severity",
     "TowerLoading",
     "UseSegment",
     "arrival_slope",
