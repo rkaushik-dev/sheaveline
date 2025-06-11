@@ -6,10 +6,16 @@ from sheaveline.capacity.spacing import (
     LineSpacing,
     SpacingSurvey,
 )
+from sheaveline.capacity.uphill import (
+    CapacityCertificate,
+    UphillCapacity,
+)
 
 __all__ = [
-    "MINIMUM_INTERVAL",
+    "CapacityCertificate",
     "CapacityError",
     "LineSpacing",
+    "MINIMUM_INTERVAL",
     "SpacingSurvey",
+    "UphillCapacity",
 ]
