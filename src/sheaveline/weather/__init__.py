@@ -5,6 +5,10 @@ from sheaveline.weather.hold import (
     HoldReason,
     WeatherHold,
 )
+from sheaveline.weather.holdlog import (
+    HoldRecord,
+    HoldRegister,
+)
 from sheaveline.weather.observation import (
     Observation,
     ObservationLog,
@@ -16,6 +20,8 @@ from sheaveline.weather.observation import (
 __all__ = [
     "Hold",
     "HoldReason",
+    "HoldRecord",
+    "HoldRegister",
     "Observation",
     "ObservationLog",
     "Precipitation",
