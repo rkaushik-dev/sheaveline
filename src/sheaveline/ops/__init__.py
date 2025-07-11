@@ -8,12 +8,20 @@ from sheaveline.ops.preop import (
     OperationsError,
     PreOpSheet,
 )
+from sheaveline.ops.stop import (
+    StopEvent,
+    StopKind,
+    StopLog,
+)
 
 __all__ = [
-    "STANDARD_SHEET",
     "CheckItem",
     "CheckOutcome",
     "CheckResult",
     "OperationsError",
     "PreOpSheet",
+    "STANDARD_SHEET",
+    "StopEvent",
+    "StopKind",
+    "StopLog",
 ]
