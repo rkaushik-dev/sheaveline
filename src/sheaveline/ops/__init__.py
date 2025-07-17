@@ -1,5 +1,9 @@
 """The daily running of the machines, from the morning walk to the last sweep."""
 
+from sheaveline.ops.meters import (
+    MeterHistory,
+    MeterReading,
+)
 from sheaveline.ops.preop import (
     STANDARD_SHEET,
     CheckItem,
@@ -18,6 +22,8 @@ __all__ = [
     "CheckItem",
     "CheckOutcome",
     "CheckResult",
+    "MeterHistory",
+    "MeterReading",
     "OperationsError",
     "PreOpSheet",
     "STANDARD_SHEET",
