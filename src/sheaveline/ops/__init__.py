@@ -17,6 +17,11 @@ from sheaveline.ops.preop import (
     OperationsError,
     PreOpSheet,
 )
+from sheaveline.ops.shift import (
+    Assignment,
+    Post,
+    Roster,
+)
 from sheaveline.ops.stop import (
     StopEvent,
     StopKind,
@@ -24,6 +29,7 @@ from sheaveline.ops.stop import (
 )
 
 __all__ = [
+    "Assignment",
     "CheckItem",
     "CheckOutcome",
     "CheckResult",
@@ -33,7 +39,9 @@ __all__ = [
     "MeterHistory",
     "MeterReading",
     "OperationsError",
+    "Post",
     "PreOpSheet",
+    "Roster",
     "STANDARD_SHEET",
     "StopEvent",
     "StopKind",
