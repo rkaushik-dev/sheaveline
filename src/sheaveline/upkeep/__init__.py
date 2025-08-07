@@ -8,12 +8,20 @@ from sheaveline.upkeep.interval import (
     Requirement,
     UpkeepError,
 )
+from sheaveline.upkeep.library import (
+    STANDARD_LIBRARY,
+    library_for,
+    requirement,
+)
 
 __all__ = [
     "AERIAL",
-    "DETACHABLES",
     "Basis",
+    "DETACHABLES",
     "Interval",
     "Requirement",
+    "STANDARD_LIBRARY",
     "UpkeepError",
+    "library_for",
+    "requirement",
 ]
