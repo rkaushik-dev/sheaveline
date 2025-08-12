@@ -13,12 +13,22 @@ from sheaveline.upkeep.library import (
     library_for,
     requirement,
 )
+from sheaveline.upkeep.record import (
+    Defect,
+    DefectLevel,
+    InspectionRecord,
+    RecordBook,
+)
 
 __all__ = [
     "AERIAL",
     "Basis",
     "DETACHABLES",
+    "Defect",
+    "DefectLevel",
+    "InspectionRecord",
     "Interval",
+    "RecordBook",
     "Requirement",
     "STANDARD_LIBRARY",
     "UpkeepError",
