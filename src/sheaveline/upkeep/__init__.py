@@ -19,6 +19,10 @@ from sheaveline.upkeep.record import (
     InspectionRecord,
     RecordBook,
 )
+from sheaveline.upkeep.schedule import (
+    DueItem,
+    UpkeepSchedule,
+)
 
 __all__ = [
     "AERIAL",
@@ -26,12 +30,14 @@ __all__ = [
     "DETACHABLES",
     "Defect",
     "DefectLevel",
+    "DueItem",
     "InspectionRecord",
     "Interval",
     "RecordBook",
     "Requirement",
     "STANDARD_LIBRARY",
     "UpkeepError",
+    "UpkeepSchedule",
     "library_for",
     "requirement",
 ]
