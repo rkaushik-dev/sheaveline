@@ -5,28 +5,28 @@ holding the machine, because wind and lightning behave completely differently:
 one of them is over when the anemometer says so and the other is over thirty
 minutes after the last strike, whatever the anemometer says.
 
-The limits are not the same for every machine either. A surface tow does not
-care what the wind is doing across it, because there is nothing hanging off the
-rope to swing. A tram with two enclosed cars will run in wind that would have
-had a fixed grip triple shut for an hour.
+The limits used to live in this file as a chain of tests on the lift class. They
+are in the policy table now, and what is left here is the six questions
+themselves, which is the part that is actually logic. Adding a seventh question
+is one entry in the tuple at the bottom.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from typing import Final
 
-from sheaveline.measures.length import Length
 from sheaveline.measures.speed import Speed
-from sheaveline.measures.temperature import Temperature
-from sheaveline.plant.classes import LiftClass
 from sheaveline.plant.lift import Lift
 from sheaveline.weather.observation import Observation
-
-LIGHTNING_RADIUS: Final = Length.from_feet(26400)
-MINIMUM_VISIBILITY: Final = Length.from_feet(200)
-CHILL_FLOOR: Final = Temperature.from_degrees_f(-25)
+from sheaveline.weather.policy import (
+    LIGHTNING_RADIUS,
+    MINIMUM_VISIBILITY,
+    ClassPolicy,
+    policy_for,
+)
 
 
 class HoldReason(Enum):
@@ -63,81 +63,28 @@ class WeatherHold:
     lift: Lift
     observation: Observation
 
+    @property
+    def policy(self) -> ClassPolicy:
+        return policy_for(self.lift.lift_class)
+
     def gust_limit(self) -> Speed:
-        lift_class = self.lift.lift_class
-        if lift_class is LiftClass.SURFACE_TOW:
-            return Speed.from_miles_per_hour(50)
-        if lift_class is LiftClass.FIXED_CHAIR:
-            return Speed.from_miles_per_hour(40)
-        if lift_class is LiftClass.DETACHABLE_CHAIR:
-            return Speed.from_miles_per_hour(45)
-        if lift_class is LiftClass.AERIAL_TRAM:
-            return Speed.from_miles_per_hour(55)
-        return Speed.from_miles_per_hour(50)
+        return self.policy.gust
 
     def crosswind_limit(self) -> Speed | None:
-        lift_class = self.lift.lift_class
-        if lift_class is LiftClass.SURFACE_TOW:
-            return None
-        if lift_class is LiftClass.FIXED_CHAIR:
-            return Speed.from_miles_per_hour(30)
-        if lift_class is LiftClass.DETACHABLE_CHAIR:
-            return Speed.from_miles_per_hour(32)
-        if lift_class is LiftClass.AERIAL_TRAM:
-            return Speed.from_miles_per_hour(40)
-        return Speed.from_miles_per_hour(35)
+        return self.policy.crosswind
 
     def holds_on_ice(self) -> bool:
-        """A grip that opens and closes is the thing ice stops."""
-        return self.lift.lift_class.is_detachable
+        return self.policy.holds_on_ice
 
     def crosswind(self) -> Speed:
         return self.observation.wind.peak_across(self.lift.bearing)
 
     def holds(self) -> tuple[Hold, ...]:
         found = []
-        peak = self.observation.wind.peak
-        if peak > self.gust_limit():
-            found.append(
-                Hold(
-                    HoldReason.GUST,
-                    f"{peak.format_mph()} against a limit of {self.gust_limit().format_mph()}",
-                )
-            )
-        limit = self.crosswind_limit()
-        if limit is not None and self.crosswind() > limit:
-            found.append(
-                Hold(
-                    HoldReason.CROSSWIND,
-                    f"{self.crosswind().format_mph()} across the line",
-                )
-            )
-        if self.observation.chill() < CHILL_FLOOR:
-            found.append(
-                Hold(
-                    HoldReason.CHILL,
-                    f"{self.observation.chill().format_f(0)} at the summit",
-                )
-            )
-        if self.holds_on_ice() and self.observation.icing():
-            found.append(Hold(HoldReason.ICING, "ice on the grips"))
-        if (
-            self.observation.lightning_within is not None
-            and self.observation.lightning_within <= LIGHTNING_RADIUS
-        ):
-            found.append(
-                Hold(
-                    HoldReason.LIGHTNING,
-                    f"strike within {self.observation.lightning_within.feet:.0f} ft",
-                )
-            )
-        if self.observation.visibility < MINIMUM_VISIBILITY:
-            found.append(
-                Hold(
-                    HoldReason.VISIBILITY,
-                    f"{self.observation.visibility.feet:.0f} ft at the terminal",
-                )
-            )
+        for rule in _RULES:
+            hold = rule(self)
+            if hold is not None:
+                found.append(hold)
         return tuple(found)
 
     def is_held(self) -> bool:
@@ -157,3 +104,61 @@ class WeatherHold:
         if self.may_run():
             return f"{self.lift.code} clear"
         return f"{self.lift.code} held: " + ", ".join(hold.reason.value for hold in self.holds())
+
+
+Rule = Callable[[WeatherHold], "Hold | None"]
+
+
+def _gust(check: WeatherHold) -> Hold | None:
+    peak = check.observation.wind.peak
+    limit = check.policy.gust
+    if peak <= limit:
+        return None
+    return Hold(HoldReason.GUST, f"{peak.format_mph()} against a limit of {limit.format_mph()}")
+
+
+def _crosswind(check: WeatherHold) -> Hold | None:
+    limit = check.policy.crosswind
+    if limit is None:
+        return None
+    across = check.crosswind()
+    if across <= limit:
+        return None
+    return Hold(HoldReason.CROSSWIND, f"{across.format_mph()} across the line")
+
+
+def _chill(check: WeatherHold) -> Hold | None:
+    chill = check.observation.chill()
+    if chill >= check.policy.chill_floor:
+        return None
+    return Hold(HoldReason.CHILL, f"{chill.format_f(0)} at the summit")
+
+
+def _icing(check: WeatherHold) -> Hold | None:
+    if not check.policy.holds_on_ice or not check.observation.icing():
+        return None
+    return Hold(HoldReason.ICING, "ice on the grips")
+
+
+def _lightning(check: WeatherHold) -> Hold | None:
+    struck = check.observation.lightning_within
+    if struck is None or struck > LIGHTNING_RADIUS:
+        return None
+    return Hold(HoldReason.LIGHTNING, f"strike within {struck.feet:.0f} ft")
+
+
+def _visibility(check: WeatherHold) -> Hold | None:
+    seen = check.observation.visibility
+    if seen >= MINIMUM_VISIBILITY:
+        return None
+    return Hold(HoldReason.VISIBILITY, f"{seen.feet:.0f} ft at the terminal")
+
+
+_RULES: Final[tuple[Rule, ...]] = (
+    _gust,
+    _crosswind,
+    _chill,
+    _icing,
+    _lightning,
+    _visibility,
+)

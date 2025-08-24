@@ -5,8 +5,10 @@ from sheaveline.measures.length import Length
 from sheaveline.measures.speed import Speed
 from sheaveline.measures.temperature import Temperature
 from sheaveline.measures.wind import Wind
+from sheaveline.plant.classes import LiftClass
 from sheaveline.weather.hold import HoldReason, WeatherHold
 from sheaveline.weather.observation import Observation, Precipitation, Station
+from sheaveline.weather.policy import POLICY, policy_for
 
 SUMMIT = Station("summit", Length.from_feet(7965))
 NOON = datetime(2025, 1, 15, 12, 0)
@@ -141,3 +143,32 @@ def test_several_reasons_can_hold_at_once():
 def test_a_hold_prints_its_reason_and_its_detail():
     windy = held(wind=f"{ALONG} 30G50")
     assert str(windy.holds()[0]).startswith("gust: ")
+
+
+def test_the_limits_now_come_off_the_policy_table():
+    assert held().policy is policy_for(john_paul().lift_class)
+    assert held(lift=wildcat()).policy.crosswind is None
+    assert POLICY[john_paul().lift_class].gust == Speed.from_miles_per_hour(45)
+
+
+def test_every_class_has_a_row_in_the_table():
+    for lift_class in LiftClass:
+        row = policy_for(lift_class)
+        assert row.gust.miles_per_hour > 0
+        assert row.chill_floor.degrees_f < 0
+
+
+def test_only_the_detachables_hold_on_ice_in_the_table():
+    for lift_class in LiftClass:
+        assert policy_for(lift_class).holds_on_ice == lift_class.is_detachable
+
+
+def test_a_cabin_tolerates_a_colder_chill_than_an_open_chair():
+    cabin = policy_for(LiftClass.DETACHABLE_GONDOLA)
+    chair = policy_for(LiftClass.DETACHABLE_CHAIR)
+    assert cabin.chill_floor < chair.chill_floor
+
+
+def test_the_surface_tow_is_the_only_row_with_no_crosswind_figure():
+    without = [c for c in LiftClass if not policy_for(c).cares_about_crosswind()]
+    assert without == [LiftClass.SURFACE_TOW]

@@ -16,16 +16,24 @@ from sheaveline.weather.observation import (
     Station,
     WeatherError,
 )
+from sheaveline.weather.policy import (
+    POLICY,
+    ClassPolicy,
+    policy_for,
+)
 
 __all__ = [
+    "ClassPolicy",
     "Hold",
     "HoldReason",
     "HoldRecord",
     "HoldRegister",
     "Observation",
     "ObservationLog",
+    "POLICY",
     "Precipitation",
     "Station",
     "WeatherError",
     "WeatherHold",
+    "policy_for",
 ]
