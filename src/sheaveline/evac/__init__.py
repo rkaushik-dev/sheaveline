@@ -17,17 +17,23 @@ from sheaveline.evac.team import (
     RescueTeam,
     TeamPool,
 )
+from sheaveline.evac.timing import (
+    EvacuationTiming,
+    StepTiming,
+)
 
 __all__ = [
     "CarrierStop",
     "EvacuationError",
     "EvacuationPlan",
     "EvacuationProfile",
+    "EvacuationTiming",
     "KitItem",
     "Method",
     "PlanStep",
     "RescueKit",
     "RescueTeam",
     "Side",
+    "StepTiming",
     "TeamPool",
 ]
