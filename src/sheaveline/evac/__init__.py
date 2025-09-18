@@ -1,5 +1,10 @@
 """Getting people off the line when the machine will not run."""
 
+from sheaveline.evac.drill import (
+    Drill,
+    DrillKind,
+    DrillRegister,
+)
 from sheaveline.evac.plan import (
     EvacuationPlan,
     Method,
@@ -24,6 +29,9 @@ from sheaveline.evac.timing import (
 
 __all__ = [
     "CarrierStop",
+    "Drill",
+    "DrillKind",
+    "DrillRegister",
     "EvacuationError",
     "EvacuationPlan",
     "EvacuationProfile",
