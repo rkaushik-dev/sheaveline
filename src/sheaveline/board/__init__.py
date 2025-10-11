@@ -11,13 +11,19 @@ from sheaveline.board.incident import (
     IncidentKind,
     InjuryLevel,
 )
+from sheaveline.board.register import (
+    BoardRegister,
+    ReportedIncident,
+)
 
 __all__ = [
     "BoardError",
+    "BoardRegister",
     "Filing",
     "FilingKind",
     "FilingSeries",
     "Incident",
     "IncidentKind",
     "InjuryLevel",
+    "ReportedIncident",
 ]
