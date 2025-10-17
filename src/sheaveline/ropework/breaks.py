@@ -19,7 +19,7 @@ from typing import Final
 
 from sheaveline.measures.length import Length
 from sheaveline.plant.rope import HaulRope, RopeSpec
-from sheaveline.ropework.wear import RopeworkError, WearVerdict
+from sheaveline.ropework.wear import RopeworkError
 
 REGULAR_LAY_LIMITS: Final = (6, 12)
 LANG_LAY_LIMITS: Final = (3, 6)
@@ -140,13 +140,6 @@ class BreakSurvey:
             seen for seen in self.observations if seen.exceeds(watch) and seen not in exceeded
         )
 
-    def verdict(self) -> WearVerdict:
-        if self.exceedances():
-            return WearVerdict.CONDEMNED
-        if self.near_limit():
-            return WearVerdict.MONITOR
-        return WearVerdict.SERVICEABLE
-
     def clean_length(self) -> Length:
         """How much of the rope carried no counted breaks at all."""
         marked = len({seen.station.mils for seen in self.observations})
@@ -156,4 +149,6 @@ class BreakSurvey:
         return self.rope.length - lay.scaled(marked)
 
     def __str__(self) -> str:
-        return f"{self.rope.serial} breaks on {self.taken.isoformat()}, {self.verdict().value}"
+        return (
+            f"{self.rope.serial} breaks on {self.taken.isoformat()}, {self.total_breaks()} counted"
+        )

@@ -10,7 +10,7 @@ from sheaveline.ropework.breaks import (
     BreakObservation,
     BreakSurvey,
 )
-from sheaveline.ropework.wear import RopeworkError, WearVerdict
+from sheaveline.ropework.wear import RopeworkError
 
 ROPE = john_paul().rope
 
@@ -105,32 +105,6 @@ def test_the_splice_is_held_to_a_tighter_count():
     assert not seen(0, 3, splice=False).exceeds(limits)
 
 
-def test_a_clean_rope_is_serviceable():
-    assert survey().verdict() is WearVerdict.SERVICEABLE
-    assert survey().worst() is None
-    assert survey().total_breaks() == 0
-
-
-def test_a_rope_at_half_the_allowance_goes_on_the_watch_list():
-    walked = survey(seen(1200, 4, six=7))
-    assert walked.verdict() is WearVerdict.MONITOR
-    assert len(walked.near_limit()) == 1
-    assert walked.exceedances() == ()
-
-
-def test_a_rope_over_the_allowance_comes_off():
-    walked = survey(seen(1200, 7, six=9))
-    assert walked.verdict() is WearVerdict.CONDEMNED
-    assert len(walked.exceedances()) == 1
-    assert walked.near_limit() == ()
-
-
-def test_a_lang_lay_rope_condemns_at_a_count_a_regular_one_survives():
-    counts = (seen(1200, 4, six=7),)
-    assert survey(*counts).verdict() is WearVerdict.MONITOR
-    assert survey(*counts, rope=lang_rope()).verdict() is WearVerdict.CONDEMNED
-
-
 def test_the_worst_station_prefers_a_valley_break_over_a_bigger_crown_count():
     walked = survey(seen(600, 5), seen(1200, 2, valley=1))
     assert walked.worst().station == Length.from_feet(1200)
@@ -157,8 +131,3 @@ def test_the_clean_length_takes_out_a_lay_for_every_marked_station():
     walked = survey(seen(600, 3), seen(1200, 2))
     assert walked.clean_length() < ROPE.length
     assert survey().clean_length() == ROPE.length
-
-
-def test_an_observation_and_a_survey_print_for_the_rope_file():
-    assert str(seen(1200, 4, splice=True)) == "4 in one lay at 1200 ft at the splice"
-    assert str(survey()) == "FAT-2019-04412 breaks on 2025-01-15, serviceable"

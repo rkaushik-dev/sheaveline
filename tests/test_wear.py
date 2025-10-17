@@ -10,7 +10,6 @@ from sheaveline.ropework.wear import (
     LayReading,
     RopeworkError,
     WearSurvey,
-    WearVerdict,
 )
 
 ROPE = john_paul().rope
@@ -105,48 +104,6 @@ def test_readings_below_the_condemning_diameter_are_listed():
     assert [r.station.feet for r in below] == [1200, 2400]
 
 
-def test_a_rope_measuring_well_everywhere_is_serviceable():
-    assert survey(reading(0, "1.372"), reading(1200, "1.370")).verdict() is (
-        WearVerdict.SERVICEABLE
-    )
-
-
-def test_a_rope_between_ninety_three_and_ninety_seven_percent_is_watched():
-    walked = survey(reading(0, "1.372"), reading(1200, "1.310"))
-    assert walked.verdict() is WearVerdict.MONITOR
-    assert walked.verdict().may_run
-    assert walked.verdict().needs_a_return_visit
-
-
-def test_a_rope_under_ninety_three_percent_comes_off():
-    walked = survey(reading(0, "1.372"), reading(1200, "1.270"))
-    assert walked.verdict() is WearVerdict.CONDEMNED
-    assert not walked.verdict().may_run
-
-
-def test_a_rope_gone_oval_is_watched_even_at_full_diameter():
-    walked = survey(reading(0, "1.378"), reading(600, "1.400", "1.320"))
-    assert walked.verdict() is WearVerdict.MONITOR
-
-
-def test_a_lay_that_has_opened_two_percent_puts_the_rope_on_watch():
-    nominal = ROPE.spec.lay_length()
-    walked = survey(
-        reading(0, "1.376"),
-        lays=(LayReading(Length.from_feet(600), nominal.scaled("1.03")),),
-    )
-    assert walked.verdict() is WearVerdict.MONITOR
-
-
-def test_a_lay_that_has_opened_five_percent_condemns_it():
-    nominal = ROPE.spec.lay_length()
-    walked = survey(
-        reading(0, "1.376"),
-        lays=(LayReading(Length.from_feet(600), nominal.scaled("1.08")),),
-    )
-    assert walked.verdict() is WearVerdict.CONDEMNED
-
-
 def test_a_survey_with_no_lay_readings_reports_no_stretch():
     assert survey(reading(0, "1.376")).worst_lay_stretch() == 0
 
@@ -154,8 +111,3 @@ def test_a_survey_with_no_lay_readings_reports_no_stretch():
 def test_the_stations_walked_come_back_in_the_order_recorded():
     walked = survey(reading(0, "1.372"), reading(1200, "1.370"), reading(2400, "1.368"))
     assert [s.feet for s in walked.stations()] == [0, 1200, 2400]
-
-
-def test_a_survey_prints_its_verdict():
-    walked = survey(reading(0, "1.372"))
-    assert str(walked) == "FAT-2019-04412 on 2025-01-15, serviceable"

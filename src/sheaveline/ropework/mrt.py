@@ -24,7 +24,7 @@ from typing import Final
 
 from sheaveline.measures.length import Length
 from sheaveline.plant.rope import HaulRope
-from sheaveline.ropework.wear import RopeworkError, WearVerdict
+from sheaveline.ropework.wear import RopeworkError
 
 FIRST_TEST_YEARS: Final = 4
 MID_LIFE_YEARS: Final = 10
@@ -124,15 +124,8 @@ class MagneticTest:
         faults = self.of_kind(IndicationKind.LOCAL_FAULT)
         return int(max((mark.magnitude for mark in faults), default=Decimal(0)))
 
-    def verdict(self) -> WearVerdict:
-        if self.peak_loss() > LMA_CONDEMN or self.largest_fault() > LOCAL_FAULT_CONDEMN:
-            return WearVerdict.CONDEMNED
-        if self.peak_loss() > LMA_WATCH or self.largest_fault() > LOCAL_FAULT_WATCH:
-            return WearVerdict.MONITOR
-        return WearVerdict.SERVICEABLE
-
     def __str__(self) -> str:
-        return f"{self.rope.serial} tested {self.taken.isoformat()}, {self.verdict().value}"
+        return f"{self.rope.serial} tested {self.taken.isoformat()}, {len(self.indications)} marks"
 
 
 @dataclass(frozen=True)

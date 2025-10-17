@@ -13,7 +13,7 @@ from sheaveline.ropework.mrt import (
     MagneticTest,
     RetestSchedule,
 )
-from sheaveline.ropework.wear import RopeworkError, WearVerdict
+from sheaveline.ropework.wear import RopeworkError
 
 ROPE = john_paul().rope
 
@@ -79,34 +79,6 @@ def test_a_test_cannot_predate_the_rope_or_run_past_its_end():
         magnetic_test(loss(12000, "2"))
 
 
-def test_a_clean_trace_is_serviceable():
-    assert magnetic_test().verdict() is WearVerdict.SERVICEABLE
-    assert magnetic_test().peak_loss() == 0
-    assert magnetic_test().largest_fault() == 0
-
-
-def test_the_peak_loss_is_the_worst_one_on_the_trace():
-    walked = magnetic_test(loss(600, "2.1"), loss(1800, "7.4"), loss(3000, "3.0"))
-    assert walked.peak_loss() == Decimal("7.4")
-    assert walked.verdict() is WearVerdict.MONITOR
-
-
-def test_a_loss_over_ten_percent_condemns_the_rope():
-    assert magnetic_test(loss(1800, "10.4")).verdict() is WearVerdict.CONDEMNED
-    assert magnetic_test(loss(1800, "10.0")).verdict() is WearVerdict.MONITOR
-
-
-def test_local_faults_are_read_separately_from_losses():
-    walked = magnetic_test(loss(600, "2.0"), fault(2400, 3), fault(3000, 5))
-    assert walked.largest_fault() == 5
-    assert walked.verdict() is WearVerdict.CONDEMNED
-
-
-def test_a_small_fault_only_puts_the_rope_on_watch():
-    assert magnetic_test(fault(2400, 3)).verdict() is WearVerdict.MONITOR
-    assert magnetic_test(fault(2400, 2)).verdict() is WearVerdict.SERVICEABLE
-
-
 def test_indications_can_be_pulled_out_by_kind():
     walked = magnetic_test(loss(600, "2.0"), fault(2400, 3))
     assert len(walked.of_kind(IndicationKind.LOSS_OF_AREA)) == 1
@@ -163,7 +135,3 @@ def test_a_test_of_another_rope_does_not_move_this_schedule():
 def test_a_last_test_before_the_rope_went_on_is_refused():
     with pytest.raises(RopeworkError):
         RetestSchedule(ROPE, last_test=date(2015, 1, 1))
-
-
-def test_a_test_prints_its_verdict():
-    assert str(magnetic_test()) == "FAT-2019-04412 tested 2025-01-15, serviceable"

@@ -8,6 +8,10 @@ diameter still reads well.
 
 Both are measured at stations along the rope, counted from the splice, because
 that is the only mark on it that does not move.
+
+What the readings mean is not decided here. The survey carries numbers and the
+rule table in verdict.py decides what they cost, so there is one place to look
+when the board asks where a threshold came from.
 """
 
 from __future__ import annotations
@@ -144,20 +148,5 @@ class WearSurvey:
         for reading in self.diameters:
             yield reading.station
 
-    def verdict(self) -> WearVerdict:
-        """What the survey says about the rope, on diameter and on lay."""
-        worst = self.percent_of_nominal(self.smallest())
-        if worst < 93:
-            return WearVerdict.CONDEMNED
-        if self.worst_lay_stretch() > Decimal("0.05"):
-            return WearVerdict.CONDEMNED
-        if worst < 97:
-            return WearVerdict.MONITOR
-        if self.worst_ovality().ovality() > self.nominal.scaled("0.05"):
-            return WearVerdict.MONITOR
-        if self.worst_lay_stretch() > Decimal("0.02"):
-            return WearVerdict.MONITOR
-        return WearVerdict.SERVICEABLE
-
     def __str__(self) -> str:
-        return f"{self.rope.serial} on {self.taken.isoformat()}, {self.verdict().value}"
+        return f"{self.rope.serial} walked on {self.taken.isoformat()}"

@@ -28,6 +28,12 @@ from sheaveline.ropework.tension import (
     TensionReading,
     TensionSystem,
 )
+from sheaveline.ropework.verdict import (
+    RopeFile,
+    assess_breaks,
+    assess_test,
+    assess_wear,
+)
 from sheaveline.ropework.wear import (
     DiameterReading,
     LayReading,
@@ -47,6 +53,7 @@ __all__ = [
     "MagneticTest",
     "RetestSchedule",
     "RetorqueCycle",
+    "RopeFile",
     "RopeworkError",
     "SlipProgramme",
     "SlipTest",
@@ -58,4 +65,7 @@ __all__ = [
     "TorqueCheck",
     "WearSurvey",
     "WearVerdict",
+    "assess_breaks",
+    "assess_test",
+    "assess_wear",
 ]
