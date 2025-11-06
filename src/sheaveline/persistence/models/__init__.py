@@ -1,5 +1,14 @@
 """Every table in the system, imported so the metadata knows about all of them."""
 
+from sheaveline.persistence.models.ops import (
+    AssignmentRow,
+    DayLogRow,
+    HoldRow,
+    LogEntryRow,
+    MeterReadingRow,
+    PreOpResultRow,
+    StopRow,
+)
 from sheaveline.persistence.models.plant import (
     BrakeRow,
     CarrierRow,
@@ -24,18 +33,25 @@ from sheaveline.persistence.models.ropework import (
 )
 
 __all__ = [
+    "AssignmentRow",
     "BrakeRow",
     "BreakObservationRow",
     "BreakSurveyRow",
     "CarrierRow",
+    "DayLogRow",
     "DiameterReadingRow",
     "HaulRopeRow",
+    "HoldRow",
     "IndicationRow",
     "LayReadingRow",
     "LiftRow",
+    "LogEntryRow",
     "MagneticTestRow",
+    "MeterReadingRow",
+    "PreOpResultRow",
     "RopeSpecRow",
     "SpliceRow",
+    "StopRow",
     "SurveyShotRow",
     "TensionReadingRow",
     "TensionSystemRow",
