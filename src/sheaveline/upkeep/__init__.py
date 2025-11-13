@@ -28,6 +28,11 @@ from sheaveline.upkeep.status import (
     ServiceStatus,
     StatusReason,
 )
+from sheaveline.upkeep.workorder import (
+    Priority,
+    WorkOrder,
+    WorkOrderBook,
+)
 
 __all__ = [
     "AERIAL",
@@ -38,6 +43,7 @@ __all__ = [
     "DueItem",
     "InspectionRecord",
     "Interval",
+    "Priority",
     "RecordBook",
     "Requirement",
     "STANDARD_LIBRARY",
@@ -46,6 +52,8 @@ __all__ = [
     "StatusReason",
     "UpkeepError",
     "UpkeepSchedule",
+    "WorkOrder",
+    "WorkOrderBook",
     "library_for",
     "requirement",
 ]
