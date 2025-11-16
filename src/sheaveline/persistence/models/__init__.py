@@ -31,6 +31,11 @@ from sheaveline.persistence.models.ropework import (
     TensionSystemRow,
     WearSurveyRow,
 )
+from sheaveline.persistence.models.upkeep import (
+    DefectRow,
+    InspectionRecordRow,
+    WorkOrderRow,
+)
 
 __all__ = [
     "AssignmentRow",
@@ -39,10 +44,12 @@ __all__ = [
     "BreakSurveyRow",
     "CarrierRow",
     "DayLogRow",
+    "DefectRow",
     "DiameterReadingRow",
     "HaulRopeRow",
     "HoldRow",
     "IndicationRow",
+    "InspectionRecordRow",
     "LayReadingRow",
     "LiftRow",
     "LogEntryRow",
@@ -58,4 +65,5 @@ __all__ = [
     "TerminalRow",
     "TowerRow",
     "WearSurveyRow",
+    "WorkOrderRow",
 ]
