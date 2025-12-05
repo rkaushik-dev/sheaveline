@@ -9,10 +9,22 @@ from sheaveline.persistence.base import (
     drop_schema,
     session_scope,
 )
+from sheaveline.persistence.repositories import (
+    IncidentRepository,
+    LiftRepository,
+    RopeRepository,
+    WearSurveyRepository,
+    WorkOrderRepository,
+)
 
 __all__ = [
     "Base",
+    "IncidentRepository",
+    "LiftRepository",
+    "RopeRepository",
     "StorageError",
+    "WearSurveyRepository",
+    "WorkOrderRepository",
     "build_engine",
     "build_sessions",
     "create_schema",
