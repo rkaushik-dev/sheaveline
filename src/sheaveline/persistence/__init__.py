@@ -16,6 +16,7 @@ from sheaveline.persistence.repositories import (
     WearSurveyRepository,
     WorkOrderRepository,
 )
+from sheaveline.persistence.uow import UnitOfWork
 
 __all__ = [
     "Base",
@@ -23,6 +24,7 @@ __all__ = [
     "LiftRepository",
     "RopeRepository",
     "StorageError",
+    "UnitOfWork",
     "WearSurveyRepository",
     "WorkOrderRepository",
     "build_engine",
