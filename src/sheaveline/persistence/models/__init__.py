@@ -1,4 +1,9 @@
-"""Every table in the system, imported so the metadata knows about all of them."""
+"""Every table in the system, imported so the metadata knows about all of them.
+
+The counter is in here for exactly that reason. It lives with the numbering
+rather than with the board tables, and a table nothing imports is a table
+create_all does not build.
+"""
 
 from sheaveline.persistence.models.board import (
     CertificateClassRow,
@@ -44,8 +49,10 @@ from sheaveline.persistence.models.upkeep import (
     InspectionRecordRow,
     WorkOrderRow,
 )
+from sheaveline.persistence.numbering import FilingCounterRow
 
 __all__ = [
+    "FilingCounterRow",
     "AssignmentRow",
     "BrakeRow",
     "BreakObservationRow",

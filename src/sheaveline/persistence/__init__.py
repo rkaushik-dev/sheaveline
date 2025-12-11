@@ -9,6 +9,10 @@ from sheaveline.persistence.base import (
     drop_schema,
     session_scope,
 )
+from sheaveline.persistence.numbering import (
+    peek_number,
+    take_number,
+)
 from sheaveline.persistence.repositories import (
     IncidentRepository,
     LiftRepository,
@@ -31,5 +35,7 @@ __all__ = [
     "build_sessions",
     "create_schema",
     "drop_schema",
+    "peek_number",
     "session_scope",
+    "take_number",
 ]
