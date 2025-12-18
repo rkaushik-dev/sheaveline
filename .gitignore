@@ -10,3 +10,4 @@ dist/
 *.egg-info/
 .venv/
 *.sqlite3
+sheaveline.sqlite3

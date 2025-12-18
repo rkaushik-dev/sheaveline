@@ -12,6 +12,7 @@ license = { text = "Proprietary" }
 authors = [{ name = "rkaushik-dev" }]
 dependencies = [
   "SQLAlchemy==2.0.38",
+  "alembic==1.14.1",
 ]
 
 [project.optional-dependencies]
@@ -40,6 +41,10 @@ select = ["E", "F", "I", "B", "UP", "C4", "SIM", "RET"]
 [tool.ruff.lint.per-file-ignores]
 # A test that a constructor refuses has to evaluate the expression on its own.
 "tests/*" = ["B018"]
+# A migration is generated, and a check constraint reads as one line of sql.
+"migrations/*" = ["E501"]
+# The environment registers every table by importing the package for its side effect.
+"migrations/env.py" = ["E402", "F401", "I001"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["sheaveline"]
