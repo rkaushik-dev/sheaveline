@@ -13,11 +13,15 @@ authors = [{ name = "rkaushik-dev" }]
 dependencies = [
   "SQLAlchemy==2.0.38",
   "alembic==1.14.1",
+  "fastapi==0.115.8",
+  "pydantic==2.10.6",
+  "uvicorn[standard]==0.34.0",
 ]
 
 [project.optional-dependencies]
 dev = [
   "pytest==8.3.4",
+  "httpx==0.28.1",
   "ruff==0.9.6",
   "mypy==1.15.0",
 ]
@@ -29,6 +33,11 @@ where = ["src"]
 testpaths = ["tests"]
 pythonpath = ["src", "tests"]
 addopts = "-q"
+filterwarnings = [
+  # Starlette's test client reaches for an anyio alias anyio has deprecated.
+  # Not ours to fix and not worth reading on every run.
+  "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning",
+]
 
 [tool.ruff]
 line-length = 100
@@ -39,8 +48,12 @@ src = ["src", "tests"]
 select = ["E", "F", "I", "B", "UP", "C4", "SIM", "RET"]
 
 [tool.ruff.lint.per-file-ignores]
-# A test that a constructor refuses has to evaluate the expression on its own.
-"tests/*" = ["B018"]
+# Routes declare their query parameters and bodies as call defaults, which is
+# the framework calling convention and there is no other way to write it.
+"src/sheaveline/api/*" = ["B008"]
+# A test that a constructor refuses has to evaluate the expression on its own,
+# and a test that stands a route up declares dependencies the way a route does.
+"tests/*" = ["B008", "B018"]
 # A migration is generated, and a check constraint reads as one line of sql.
 "migrations/*" = ["E501"]
 # The environment registers every table by importing the package for its side effect.
