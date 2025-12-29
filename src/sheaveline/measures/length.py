@@ -21,7 +21,7 @@ MILS_PER_FOOT: Final = MILS_PER_INCH * INCHES_PER_FOOT
 
 _FEET_INCHES = re.compile(
     r"""^\s*
-    (?:(?P<feet>-?\d+)\s*(?:'|ft|feet|foot)\s*)?
+    (?:(?P<feet>-?\d+(?:\.\d+)?)\s*(?:'|ft|feet|foot)\s*)?
     (?:(?P<inches>-?\d+(?:\.\d+)?)\s*(?:"|in|inch|inches)?\s*)?
     $""",
     re.VERBOSE | re.IGNORECASE,
@@ -80,8 +80,13 @@ class Length:
             # A bare number with no unit is inches, which is how a rope diameter
             # is written and how a machinist reads an unlabelled dimension.
             return cls.from_inches(inches_text or "0")
-        feet = int(feet_text)
-        return cls.from_feet_inches(feet, inches_text or "0")
+        if inches_text is None:
+            # A decimal number of feet is what a survey prints, and it has no
+            # inches part to add to it.
+            return cls.from_feet(feet_text)
+        if "." in feet_text:
+            raise ParseError(text, "a length")
+        return cls.from_feet_inches(int(feet_text), inches_text)
 
     def split_feet_inches(self) -> tuple[int, Decimal]:
         """Split into whole feet and the remaining inches, both signed alike."""

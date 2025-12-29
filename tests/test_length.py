@@ -47,13 +47,17 @@ def test_rounding_is_half_away_from_zero():
         ("1.378 in", 1378),
         ("6 feet 3 inches", 6 * 12000 + 3000),
         ("  40'  ", 40 * 12000),
+        ("4800.00 ft", 4800 * 12000),
+        ("148.5 feet", 148 * 12000 + 6000),
     ],
 )
 def test_parse_reads_the_shapes_a_drawing_uses(text, mils):
     assert Length.parse(text).mils == mils
 
 
-@pytest.mark.parametrize("text", ["", "   ", "ft", "twelve feet", "12 ft 6 ft", "1.2.3"])
+@pytest.mark.parametrize(
+    "text", ["", "   ", "ft", "twelve feet", "12 ft 6 ft", "1.2.3", "12.5 ft 6 in"]
+)
 def test_parse_refuses_what_is_not_a_length(text):
     with pytest.raises(ParseError):
         Length.parse(text)

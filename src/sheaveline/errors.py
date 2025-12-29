@@ -12,8 +12,13 @@ class SheavelineError(Exception):
     """Root of every error this package raises."""
 
 
-class MeasureError(SheavelineError):
-    """A measured quantity was built or parsed wrong."""
+class MeasureError(SheavelineError, ValueError):
+    """A measured quantity was built or parsed wrong.
+
+    Also a ValueError, because that is what it is, and because pydantic only
+    turns a ValueError into a field level complaint. Anything else escapes the
+    model and reaches the client as a five hundred.
+    """
 
 
 class ParseError(MeasureError):
