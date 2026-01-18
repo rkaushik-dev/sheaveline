@@ -19,6 +19,7 @@ from typing import Final
 
 from sqlalchemy import Engine, MetaData, create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from sheaveline.errors import SheavelineError
 
@@ -44,7 +45,24 @@ class Base(DeclarativeBase):
 
 
 def build_engine(url: str = MEMORY_URL, echo: bool = False) -> Engine:
-    """An engine with sqlite told to enforce the foreign keys it normally ignores."""
+    """An engine with sqlite told to enforce the foreign keys it normally ignores.
+
+    An in memory database belongs to the connection that opened it, so the pool
+    has to hand out the same one every time or the schema built on the first
+    connection is invisible to the second. That is not a test convenience: it is
+    the difference between a working application and one that raises no such
+    table on its first request.
+    """
+    if ":memory:" in url:
+        engine = create_engine(
+            url,
+            echo=echo,
+            future=True,
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        _enforce_sqlite_foreign_keys(engine)
+        return engine
     engine = create_engine(url, echo=echo, future=True)
     if engine.dialect.name == "sqlite":
         _enforce_sqlite_foreign_keys(engine)

@@ -20,6 +20,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from sheaveline.api.security import AuthError
 from sheaveline.board.incident import BoardError
 from sheaveline.capacity.spacing import CapacityError
 from sheaveline.errors import MeasureError, ParseError, RangeError, SheavelineError
@@ -59,6 +60,7 @@ STATUS_FOR: Final[dict[type[Exception], int]] = {
     PeopleError: status.HTTP_409_CONFLICT,
     BoardError: status.HTTP_409_CONFLICT,
     StorageError: status.HTTP_404_NOT_FOUND,
+    AuthError: status.HTTP_401_UNAUTHORIZED,
 }
 
 
