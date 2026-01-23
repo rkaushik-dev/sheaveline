@@ -60,9 +60,10 @@ def build_app(settings: Settings) -> FastAPI:
     app.state.settings = settings
     install_handlers(app)
 
-    from sheaveline.api.routes import lifts
+    from sheaveline.api.routes import lifts, ropes
 
     app.include_router(lifts.router)
+    app.include_router(ropes.router)
 
     @app.get("/health", tags=["service"])
     def health() -> dict[str, str]:
