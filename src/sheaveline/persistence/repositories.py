@@ -8,11 +8,12 @@ shapes meet.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from sheaveline.board.filing import Filing, FilingKind
 from sheaveline.board.incident import Incident
 from sheaveline.persistence.base import StorageError
 from sheaveline.persistence.mappers.plant import (
@@ -22,11 +23,12 @@ from sheaveline.persistence.mappers.plant import (
     rope_to_row,
 )
 from sheaveline.persistence.mappers.ropework import wear_from_row, wear_to_row
-from sheaveline.persistence.models.board import IncidentRow
+from sheaveline.persistence.models.board import FilingRow, IncidentRow
 from sheaveline.persistence.models.plant import HaulRopeRow, LiftRow
 from sheaveline.persistence.models.ropework import WearSurveyRow
 from sheaveline.persistence.models.upkeep import WorkOrderRow
-from sheaveline.plant.identity import LiftCode, RopeSerial
+from sheaveline.persistence.numbering import take_number
+from sheaveline.plant.identity import FilingNumber, LiftCode, RopeSerial
 from sheaveline.plant.lift import Lift
 from sheaveline.plant.rope import HaulRope
 from sheaveline.ropework.wear import WearSurvey
@@ -167,6 +169,75 @@ class IncidentRepository:
                 narrative=incident.narrative,
                 reported_by=incident.reported_by,
             )
+        )
+
+    def record(self, incident: Incident) -> int:
+        """Write an incident and hand back the id the routes address it by."""
+        row = IncidentRow(
+            lift_code=incident.lift,
+            at=incident.at,
+            kind=incident.kind,
+            injury=incident.injury,
+            people=incident.people,
+            narrative=incident.narrative,
+            reported_by=incident.reported_by,
+        )
+        self.session.add(row)
+        self.session.flush()
+        return row.id
+
+    def get(self, incident_id: int) -> tuple[Incident, FilingNumber | None]:
+        row = self.session.get(IncidentRow, incident_id)
+        if row is None:
+            raise StorageError(f"there is no incident {incident_id}")
+        return self._to_domain(row), row.filing_number
+
+    def numbered_for_lift(self, code: LiftCode) -> list[tuple[int, Incident, FilingNumber | None]]:
+        rows = self.session.scalars(
+            select(IncidentRow).where(IncidentRow.lift_code == code).order_by(IncidentRow.at)
+        )
+        return [(row.id, self._to_domain(row), row.filing_number) for row in rows]
+
+    def numbered_unfiled(self) -> list[tuple[int, Incident, FilingNumber | None]]:
+        rows = self.session.scalars(
+            select(IncidentRow).where(IncidentRow.filing_number.is_(None)).order_by(IncidentRow.at)
+        )
+        return [(row.id, self._to_domain(row), None) for row in rows]
+
+    def file(
+        self,
+        incident_id: int,
+        kind: FilingKind,
+        filed: datetime,
+        filed_by: str,
+    ) -> Filing:
+        """Take the next board number, write the filing and hang it on the incident."""
+        row = self.session.get(IncidentRow, incident_id)
+        if row is None:
+            raise StorageError(f"there is no incident {incident_id}")
+        if row.filing_number is not None:
+            raise StorageError(f"incident {incident_id} is already filed")
+        number = take_number(self.session, "UT", filed.year)
+        self.session.add(
+            FilingRow(
+                number=number,
+                kind=kind,
+                lift_code=row.lift_code,
+                filed=filed,
+                about=row.narrative,
+                filed_by=filed_by,
+            )
+        )
+        self.session.flush()
+        row.filing_number = number
+        self.session.flush()
+        return Filing(
+            number=number,
+            kind=kind,
+            lift=row.lift_code,
+            filed=filed,
+            about=row.narrative,
+            filed_by=filed_by,
         )
 
     def for_lift(self, code: LiftCode) -> list[Incident]:
