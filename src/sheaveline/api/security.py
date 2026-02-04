@@ -5,11 +5,20 @@ season, the board's auditor. They are not people typing passwords, so the token
 is a key with a role on it, and the role decides what the key may do rather than
 who holds it.
 
-Two things are worth stating because they are easy to get wrong. The secret is
-never stored, only a derived hash with its own salt, so a copy of the database
-does not hand somebody the keys. And the comparison is constant time, because a
-comparison that returns early tells an attacker how much of the secret was
-right.
+Three things are worth stating because they are easy to get wrong. The secret is
+never stored, only a salted hash of it, so a copy of the database does not hand
+somebody the keys. The comparison is constant time, because a comparison that
+returns early tells an attacker how much of the secret was right. And the
+derivation is one round rather than a quarter of a million.
+
+That last one looks like a corner cut and is not. Stretching exists to make
+guessing a low entropy secret expensive, and there is nothing to guess here: the
+secret is thirty two random bytes, so an attacker who cannot break sha256 cannot
+get anywhere however few rounds there are. What a quarter of a million rounds
+does buy is a fifth of a second of the department's own time on every single
+request, which is a denial of service the department is doing to itself. So the
+minimum length is enforced at issue instead, and the entropy assumption the
+single round rests on is a rule rather than a hope.
 """
 
 from __future__ import annotations
@@ -25,9 +34,9 @@ from typing import Final
 
 from sheaveline.errors import SheavelineError
 
-ITERATIONS: Final = 240_000
 SALT_BYTES: Final = 16
 SECRET_BYTES: Final = 32
+MINIMUM_SECRET_LENGTH: Final = 32
 KEY_ID_LENGTH: Final = 12
 
 
@@ -69,7 +78,8 @@ def new_key_id() -> str:
 
 
 def derive(secret: str, salt: bytes) -> bytes:
-    return hashlib.pbkdf2_hmac("sha256", secret.encode("utf-8"), salt, ITERATIONS)
+    """Salted sha256. One round, because the secret carries its own entropy."""
+    return hashlib.sha256(salt + secret.encode("utf-8")).digest()
 
 
 @dataclass(frozen=True)
@@ -106,6 +116,11 @@ class ApiKey:
     ) -> tuple[ApiKey, str]:
         """Mint a key. The secret is handed back once and never stored."""
         raw = secret or new_secret()
+        if len(raw) < MINIMUM_SECRET_LENGTH:
+            raise AuthError(
+                f"a key secret is at least {MINIMUM_SECRET_LENGTH} characters, "
+                "because the derivation leans on its entropy"
+            )
         salt = secrets.token_bytes(SALT_BYTES)
         key = cls(
             key_id=key_id or new_key_id(),

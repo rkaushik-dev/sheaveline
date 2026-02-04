@@ -2,47 +2,26 @@ from datetime import date
 
 import pytest
 from fastapi import status
-from fastapi.testclient import TestClient
 
 from hill import john_paul, strawberry, wildcat
-from sheaveline.api.app import Settings, build_app
-from sheaveline.api.security import ApiKey, KeyRing, Role
+from sheaveline.api.security import Role
 from sheaveline.persistence.uow import UnitOfWork
+from wire import client_for, headers, settings
 
 ON = date(2025, 1, 15)
 SERIAL = "FAT-2019-04412"
-SECRETS: dict[Role, str] = {}
-
-
-def ring() -> KeyRing:
-    keys = []
-    for index, role in enumerate(Role):
-        key, secret = ApiKey.issue(
-            holder=f"{role.value} client",
-            role=role,
-            issued=date(2024, 11, 1),
-            expires=date(2025, 12, 1),
-            key_id=f"{index:012d}",
-        )
-        SECRETS[role] = f"{key.key_id}.{secret}"
-        keys.append(key)
-    return KeyRing.of(keys)
 
 
 @pytest.fixture
 def client():
-    settings = Settings.in_memory(keys=ring(), today=lambda: ON)
-    with UnitOfWork.on(settings.engine) as work:
+    built = settings()
+    with UnitOfWork.on(built.engine) as work:
         work.lifts.add(john_paul())
         work.lifts.add(strawberry())
         work.ropes.add(wildcat().rope)
         work.commit()
-    with TestClient(build_app(settings), raise_server_exceptions=False) as opened:
+    with client_for(built) as opened:
         yield opened
-
-
-def headers(role=Role.READER):
-    return {"x-api-key": SECRETS[role]}
 
 
 def survey_body(inches="1.376", taken="2025-01-15"):

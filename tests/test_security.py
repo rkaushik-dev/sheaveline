@@ -3,6 +3,7 @@ from datetime import date
 import pytest
 
 from sheaveline.api.security import (
+    MINIMUM_SECRET_LENGTH,
     ApiKey,
     AuthError,
     KeyRing,
@@ -13,6 +14,7 @@ from sheaveline.api.security import (
 )
 
 ON = date(2025, 1, 15)
+KNOWN_SECRET = "a-known-secret-for-the-test-long-enough"
 
 
 def issue(
@@ -23,7 +25,7 @@ def issue(
         role=role,
         issued=date(2024, 11, 1),
         expires=expires,
-        secret="a-known-secret-for-the-test",
+        secret=KNOWN_SECRET,
         key_id=key_id,
     )
 
@@ -38,7 +40,7 @@ def test_a_manager_key_covers_everything_under_it():
 
 def test_a_key_is_minted_with_its_secret_handed_back_once():
     key, secret = issue()
-    assert secret == "a-known-secret-for-the-test"
+    assert secret == KNOWN_SECRET
     assert key.matches(secret)
     assert not key.matches("something else")
 
@@ -184,6 +186,21 @@ def test_adding_a_key_makes_a_new_ring():
     assert len(longer) == 1
 
 
+def test_a_secret_short_enough_to_guess_is_refused_at_issue():
+    with pytest.raises(AuthError):
+        ApiKey.issue(
+            holder="office",
+            role=Role.READER,
+            issued=date(2024, 11, 1),
+            expires=date(2025, 12, 1),
+            secret="hunter2",
+        )
+
+
+def test_a_minted_secret_clears_the_minimum_on_its_own():
+    assert len(new_secret()) >= MINIMUM_SECRET_LENGTH
+
+
 def test_the_minted_identifiers_are_not_guessable():
     assert new_secret() != new_secret()
     assert new_key_id() != new_key_id()
@@ -193,5 +210,5 @@ def test_the_minted_identifiers_are_not_guessable():
 def test_a_key_prints_without_its_secret():
     key, _ = issue()
     printed = str(key)
-    assert "a-known-secret" not in printed
+    assert KNOWN_SECRET not in printed
     assert printed.startswith("aa11bb22cc33 (")
