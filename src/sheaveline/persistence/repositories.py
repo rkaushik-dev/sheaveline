@@ -26,12 +26,17 @@ from sheaveline.persistence.mappers.ropework import wear_from_row, wear_to_row
 from sheaveline.persistence.models.board import FilingRow, IncidentRow
 from sheaveline.persistence.models.plant import HaulRopeRow, LiftRow
 from sheaveline.persistence.models.ropework import WearSurveyRow
-from sheaveline.persistence.models.upkeep import WorkOrderRow
+from sheaveline.persistence.models.upkeep import (
+    DefectRow,
+    InspectionRecordRow,
+    WorkOrderRow,
+)
 from sheaveline.persistence.numbering import take_number
 from sheaveline.plant.identity import FilingNumber, LiftCode, RopeSerial
 from sheaveline.plant.lift import Lift
 from sheaveline.plant.rope import HaulRope
 from sheaveline.ropework.wear import WearSurvey
+from sheaveline.upkeep.record import Defect, InspectionRecord
 from sheaveline.upkeep.workorder import Priority, WorkOrder
 
 
@@ -263,6 +268,87 @@ class IncidentRepository:
             people=row.people,
             narrative=row.narrative,
             reported_by=row.reported_by,
+        )
+
+
+class InspectionRepository:
+    """Inspection records and the defects hanging off them."""
+
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def add(self, record: InspectionRecord) -> None:
+        row = InspectionRecordRow(
+            lift_code=record.lift,
+            code=record.code,
+            done=record.done,
+            by=record.by,
+            hours=record.hours,
+            cycles=record.cycles,
+        )
+        for defect in record.defects:
+            row.defects.append(
+                DefectRow(
+                    where=defect.where,
+                    level=defect.level,
+                    detail=defect.detail,
+                    raised=defect.raised,
+                    cleared=defect.cleared,
+                    cleared_by=defect.cleared_by,
+                )
+            )
+        self.session.add(row)
+
+    def for_lift(self, code: LiftCode, job: str | None = None) -> list[InspectionRecord]:
+        statement = select(InspectionRecordRow).where(InspectionRecordRow.lift_code == code)
+        if job is not None:
+            statement = statement.where(InspectionRecordRow.code == job.upper())
+        rows = self.session.scalars(statement.order_by(InspectionRecordRow.done))
+        return [self._to_domain(row) for row in rows]
+
+    def last_done(self, code: LiftCode, job: str) -> InspectionRecord | None:
+        found = self.for_lift(code, job)
+        return found[-1] if found else None
+
+    def open_defects(self, code: LiftCode | None = None) -> list[Defect]:
+        statement = select(DefectRow).where(DefectRow.cleared.is_(None))
+        if code is not None:
+            statement = statement.join(InspectionRecordRow).where(
+                InspectionRecordRow.lift_code == code
+            )
+        rows = self.session.scalars(statement.order_by(DefectRow.raised))
+        return [self._defect(row) for row in rows]
+
+    def clear_defect(self, where: str, raised: date, on: date, by: str) -> Defect:
+        row = self.session.scalar(
+            select(DefectRow).where(DefectRow.where == where, DefectRow.raised == raised)
+        )
+        if row is None:
+            raise StorageError(f"there is no open defect at {where} raised {raised}")
+        cleared = self._defect(row).clear(on, by)
+        row.cleared = cleared.cleared
+        row.cleared_by = cleared.cleared_by
+        return cleared
+
+    def _defect(self, row: DefectRow) -> Defect:
+        return Defect(
+            where=row.where,
+            level=row.level,
+            detail=row.detail,
+            raised=row.raised,
+            cleared=row.cleared,
+            cleared_by=row.cleared_by,
+        )
+
+    def _to_domain(self, row: InspectionRecordRow) -> InspectionRecord:
+        return InspectionRecord.of(
+            lift=row.lift_code,
+            code=row.code,
+            done=row.done,
+            by=row.by,
+            hours=row.hours,
+            cycles=row.cycles,
+            defects=[self._defect(one) for one in row.defects],
         )
 
 
