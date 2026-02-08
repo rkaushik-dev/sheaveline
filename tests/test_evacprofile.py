@@ -100,15 +100,16 @@ def test_the_highest_carrier_is_found():
 def test_the_carriers_above_a_height_are_listed():
     walk = profile()
     offset = Length.from_feet(0)
-    limit = Length.from_feet(30)
+    limit = Length.from_feet(60)
     above = walk.above(offset, limit)
+    assert above
     assert all(stop.is_above(limit) for stop in above)
     assert len(above) < walk.count_at(offset)
 
 
 def test_the_worst_offset_is_at_least_as_bad_as_any_sampled_one():
     walk = profile()
-    limit = Length.from_feet(30)
+    limit = Length.from_feet(60)
     worst = walk.worst_offset(limit)
     count = len(walk.above(worst, limit))
     assert count >= len(walk.above(Length.from_feet(0), limit))

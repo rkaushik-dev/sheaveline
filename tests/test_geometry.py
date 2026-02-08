@@ -65,14 +65,14 @@ def test_deep_enough_snow_takes_the_line_out():
     assert any(finding.severity is Severity.STOP for finding in walk.findings())
 
 
-def test_a_road_under_a_span_can_restrict_a_line_that_is_otherwise_fine():
+def test_water_under_a_span_can_restrict_a_line_that_is_otherwise_fine():
     walk = geometry(snow_feet=2)
     assert walk.verdict() is GeometryVerdict.FIT
-    over_road = geometry(
-        snow_feet=2,
-        uses=GroundUseMap.of([segment(4400, 4700, GroundUse.ROAD)]),
+    over_water = geometry(
+        snow_feet=18,
+        uses=GroundUseMap.of([segment(1500, 1700, GroundUse.WATER)]),
     )
-    assert over_road.verdict() is not GeometryVerdict.FIT
+    assert over_water.verdict() is not GeometryVerdict.FIT
 
 
 def test_dropping_the_tension_lets_the_rope_down_onto_the_ground():

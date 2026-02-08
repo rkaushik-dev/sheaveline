@@ -102,13 +102,13 @@ def jp_rope_spec() -> RopeSpec:
 # side of the crossarm. The two halves add up to what the rope actually does
 # over that tower with the design weight on the line.
 JP_LAYOUT = [
-    (1, 600, 6496, 55, "0.064", "0.064"),
-    (2, 1200, 6700, 45, "3.913", "3.912"),
-    (3, 1800, 6880, 40, "3.398", "3.397"),
-    (4, 2400, 7040, 48, "0.085", "0.084"),
-    (5, 3000, 7280, 46, "3.175", "3.175"),
-    (6, 3600, 7520, 42, "4.268", "4.268"),
-    (7, 4200, 7730, 40, "3.639", "3.639"),
+    (1, 600, 6496, 71, "0.064", "0.064"),
+    (2, 1200, 6700, 61, "3.913", "3.912"),
+    (3, 1800, 6880, 56, "3.398", "3.397"),
+    (4, 2400, 7040, 64, "0.085", "0.084"),
+    (5, 3000, 7280, 62, "3.175", "3.175"),
+    (6, 3600, 7520, 58, "4.268", "4.268"),
+    (7, 4200, 7730, 56, "3.639", "3.639"),
 ]
 
 
@@ -164,7 +164,7 @@ def john_paul(**overrides: object) -> Lift:
             role=TerminalRole.DRIVE,
             label="John Paul base",
             station=Length.from_feet(0),
-            rope_elevation=Length.from_feet(6425),
+            rope_elevation=Length.from_feet(6441),
             bullwheel=bullwheel(),
             drive=drive_train(),
         ),
@@ -172,7 +172,7 @@ def john_paul(**overrides: object) -> Lift:
             role=TerminalRole.RETURN_TENSION,
             label="John Paul summit",
             station=Length.from_feet(4800),
-            rope_elevation=Length.from_feet(7965),
+            rope_elevation=Length.from_feet(7981),
             bullwheel=bullwheel(),
             tension_travel=Length.from_feet(16),
         ),
