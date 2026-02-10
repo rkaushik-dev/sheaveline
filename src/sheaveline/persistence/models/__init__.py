@@ -49,10 +49,13 @@ from sheaveline.persistence.models.upkeep import (
     InspectionRecordRow,
     WorkOrderRow,
 )
+from sheaveline.persistence.models.weather import (
+    ObservationRow,
+    StationRow,
+)
 from sheaveline.persistence.numbering import FilingCounterRow
 
 __all__ = [
-    "FilingCounterRow",
     "AssignmentRow",
     "BrakeRow",
     "BreakObservationRow",
@@ -65,6 +68,7 @@ __all__ = [
     "DiameterReadingRow",
     "DrillRow",
     "DrillTeamRow",
+    "FilingCounterRow",
     "FilingRow",
     "HaulRopeRow",
     "HoldRow",
@@ -76,9 +80,11 @@ __all__ = [
     "LogEntryRow",
     "MagneticTestRow",
     "MeterReadingRow",
+    "ObservationRow",
     "PreOpResultRow",
     "RopeSpecRow",
     "SpliceRow",
+    "StationRow",
     "StopRow",
     "SurveyShotRow",
     "TensionReadingRow",

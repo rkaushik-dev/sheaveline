@@ -15,6 +15,9 @@ from sqlalchemy.orm import Session
 
 from sheaveline.board.filing import Filing, FilingKind
 from sheaveline.board.incident import Incident
+from sheaveline.measures.duration import Duration
+from sheaveline.measures.length import Length
+from sheaveline.measures.wind import Wind
 from sheaveline.persistence.base import StorageError
 from sheaveline.persistence.mappers.plant import (
     lift_from_row,
@@ -31,6 +34,7 @@ from sheaveline.persistence.models.upkeep import (
     InspectionRecordRow,
     WorkOrderRow,
 )
+from sheaveline.persistence.models.weather import ObservationRow, StationRow
 from sheaveline.persistence.numbering import take_number
 from sheaveline.plant.identity import FilingNumber, LiftCode, RopeSerial
 from sheaveline.plant.lift import Lift
@@ -38,6 +42,12 @@ from sheaveline.plant.rope import HaulRope
 from sheaveline.ropework.wear import WearSurvey
 from sheaveline.upkeep.record import Defect, InspectionRecord
 from sheaveline.upkeep.workorder import Priority, WorkOrder
+from sheaveline.weather.observation import (
+    STALE_AFTER,
+    Observation,
+    ObservationLog,
+    Station,
+)
 
 
 class RopeRepository:
@@ -422,4 +432,102 @@ class WorkOrderRepository:
             where=row.where,
             closed=row.closed,
             closed_by=row.closed_by,
+        )
+
+
+class WeatherRepository:
+    """Stations and everything they have reported."""
+
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def add_station(self, station: Station) -> None:
+        if self.session.get(StationRow, station.name) is not None:
+            raise StorageError(f"there is already a station called {station.name}")
+        self.session.add(StationRow(name=station.name, elevation=station.elevation))
+
+    def station(self, name: str) -> Station:
+        row = self.session.get(StationRow, name)
+        if row is None:
+            raise StorageError(f"there is no station called {name}")
+        return Station(row.name, row.elevation)
+
+    def stations(self) -> list[Station]:
+        rows = self.session.scalars(select(StationRow).order_by(StationRow.name))
+        return [Station(row.name, row.elevation) for row in rows]
+
+    def nearest_to(self, elevation: Length) -> Station:
+        """The station whose elevation is closest to the point being asked about."""
+        found = self.stations()
+        if not found:
+            raise StorageError("no station has been set up yet")
+        return min(found, key=lambda one: abs((one.elevation - elevation).mils))
+
+    def record(self, observation: Observation) -> None:
+        if self.session.get(StationRow, observation.station.name) is None:
+            raise StorageError(f"there is no station called {observation.station.name}")
+        self.session.add(
+            ObservationRow(
+                station_name=observation.station.name,
+                taken=observation.taken,
+                wind_speed=observation.wind.speed,
+                wind_bearing=observation.wind.bearing,
+                wind_gust=observation.wind.gust,
+                temperature=observation.temperature,
+                visibility=observation.visibility,
+                precipitation=observation.precipitation,
+                rime=observation.rime,
+                lightning_within=observation.lightning_within,
+            )
+        )
+
+    def since(self, moment: datetime, station: Station | None = None) -> list[Observation]:
+        statement = select(ObservationRow).where(ObservationRow.taken >= moment)
+        if station is not None:
+            statement = statement.where(ObservationRow.station_name == station.name)
+        rows = self.session.scalars(statement.order_by(ObservationRow.taken))
+        return [self._to_domain(row) for row in rows]
+
+    def latest(self, station: Station) -> Observation:
+        row = self.session.scalar(
+            select(ObservationRow)
+            .where(ObservationRow.station_name == station.name)
+            .order_by(ObservationRow.taken.desc())
+            .limit(1)
+        )
+        if row is None:
+            raise StorageError(f"nothing has been read at {station.name}")
+        return self._to_domain(row)
+
+    def latest_fresh(
+        self,
+        station: Station,
+        now: datetime,
+        after: Duration = STALE_AFTER,
+    ) -> Observation:
+        """The most recent reading that is still evidence about now."""
+        seen = self.latest(station)
+        if seen.is_stale(now, after):
+            raise StorageError(f"the last reading at {station.name} is stale")
+        return seen
+
+    def log(self, station: Station | None = None) -> ObservationLog:
+        statement = select(ObservationRow)
+        if station is not None:
+            statement = statement.where(ObservationRow.station_name == station.name)
+        rows = list(self.session.scalars(statement.order_by(ObservationRow.taken)))
+        if not rows:
+            raise StorageError("there are no readings to build a log from")
+        return ObservationLog.of([self._to_domain(row) for row in rows])
+
+    def _to_domain(self, row: ObservationRow) -> Observation:
+        return Observation(
+            station=Station(row.station.name, row.station.elevation),
+            taken=row.taken,
+            wind=Wind(row.wind_speed, row.wind_bearing, row.wind_gust),
+            temperature=row.temperature,
+            visibility=row.visibility,
+            precipitation=row.precipitation,
+            rime=row.rime,
+            lightning_within=row.lightning_within,
         )

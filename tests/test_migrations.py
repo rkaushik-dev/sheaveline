@@ -52,11 +52,13 @@ def columns_of(engine, table):
     }
 
 
-def test_there_is_one_head_and_it_is_the_baseline():
+def test_there_is_one_head_and_the_chain_runs_back_to_the_baseline():
     scripts = ScriptDirectory(str(ROOT / "migrations"))
     heads = scripts.get_heads()
     assert len(heads) == 1
-    assert heads[0] == "0001"
+    walked = [one.revision for one in scripts.walk_revisions()]
+    assert walked[-1] == "0001"
+    assert walked[0] == heads[0]
 
 
 def test_the_migration_builds_every_table_the_models_describe(migrated, built):

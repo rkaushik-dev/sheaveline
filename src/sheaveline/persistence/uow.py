@@ -24,6 +24,7 @@ from sheaveline.persistence.repositories import (
     LiftRepository,
     RopeRepository,
     WearSurveyRepository,
+    WeatherRepository,
     WorkOrderRepository,
 )
 
@@ -109,6 +110,10 @@ class UnitOfWork:
     @property
     def inspections(self) -> InspectionRepository:
         return InspectionRepository(self._require())
+
+    @property
+    def weather(self) -> WeatherRepository:
+        return WeatherRepository(self._require())
 
     @property
     def work_orders(self) -> WorkOrderRepository:
