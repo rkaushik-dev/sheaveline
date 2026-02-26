@@ -12,6 +12,7 @@ from sheaveline.reports.morning import (
     MachineLine,
     Morning,
 )
+from sheaveline.reports.ropefile import RopeFilePage
 
 __all__ = [
     "Align",
@@ -21,5 +22,6 @@ __all__ = [
     "PAGE_WIDTH",
     "Report",
     "ReportError",
+    "RopeFilePage",
     "Table",
 ]
