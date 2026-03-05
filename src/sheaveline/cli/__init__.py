@@ -1,5 +1,7 @@
 """The command line the office works at."""
 
+# Importing a command module is what puts its commands on the group.
+from sheaveline.cli import plant  # noqa: E402,F401  registered by import
 from sheaveline.cli.main import Console, cli, run
 
 __all__ = [
