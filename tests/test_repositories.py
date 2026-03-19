@@ -269,3 +269,43 @@ def test_a_work_order_that_is_not_there(session):
         WorkOrderRepository(session).get(9)
     with pytest.raises(StorageError):
         WorkOrderRepository(session).close(9, date(2025, 1, 20), "M Vetter")
+
+
+def test_a_rope_taken_off_a_machine_stays_on_file_as_a_spare(session):
+    lifts = stocked(session)
+    ropes = RopeRepository(session)
+    serial = john_paul().rope.serial
+    lifts.remove(JOHN_PAUL)
+    session.flush()
+    assert ropes.exists(serial)
+    assert serial in {one.serial for one in ropes.spares()}
+
+
+def test_putting_the_machine_back_claims_its_rope_again(session):
+    lifts = stocked(session)
+    ropes = RopeRepository(session)
+    serial = john_paul().rope.serial
+    lifts.remove(JOHN_PAUL)
+    session.flush()
+    lifts.add(john_paul())
+    session.commit()
+    assert lifts.get(JOHN_PAUL).rope.serial == serial
+    assert ropes.spares() == []
+
+
+def test_a_rope_already_on_another_machine_cannot_be_claimed(session):
+    stocked(session)
+    ropes = RopeRepository(session)
+    with pytest.raises(StorageError):
+        ropes.attach(john_paul().rope.serial, STRAWBERRY)
+
+
+def test_a_rope_can_be_taken_off_a_machine_without_being_deleted(session):
+    stocked(session)
+    ropes = RopeRepository(session)
+    serial = john_paul().rope.serial
+    ropes.detach(serial)
+    session.flush()
+    assert serial in {one.serial for one in ropes.spares()}
+    with pytest.raises(StorageError):
+        ropes.detach(RopeSerial.parse("FAT-2019-99999"))

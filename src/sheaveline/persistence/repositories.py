@@ -82,6 +82,27 @@ class RopeRepository:
         rows = self.session.scalars(select(HaulRopeRow).where(HaulRopeRow.lift_code.is_(None)))
         return [rope_from_row(row) for row in rows]
 
+    def attach(self, serial: RopeSerial, lift_code: LiftCode) -> None:
+        """Put a rope already on file onto a machine.
+
+        A rope taken off a machine is left on file as a spare rather than
+        deleted, so putting the same machine back has to find it again and
+        claim it. A rope that is on some other machine is refused, because a
+        rope in two places is a records error rather than a spare.
+        """
+        row = self.session.get(HaulRopeRow, serial)
+        if row is None:
+            raise StorageError(f"there is no rope {serial}")
+        if row.lift_code is not None and row.lift_code != lift_code:
+            raise StorageError(f"rope {serial} is already on {row.lift_code}")
+        row.lift_code = lift_code
+
+    def detach(self, serial: RopeSerial) -> None:
+        row = self.session.get(HaulRopeRow, serial)
+        if row is None:
+            raise StorageError(f"there is no rope {serial}")
+        row.lift_code = None
+
     def remove(self, serial: RopeSerial) -> None:
         row = self.session.get(HaulRopeRow, serial)
         if row is None:
@@ -99,9 +120,14 @@ class LiftRepository:
     def add(self, lift: Lift) -> None:
         if self.exists(lift.code):
             raise StorageError(f"lift {lift.code} is already on file")
-        if not self.ropes.exists(lift.rope.serial):
-            self.ropes.add(lift.rope, lift.code)
+        # The machine goes in first so the rope has something to point at,
+        # whether it is new or a spare being claimed back.
         self.session.add(lift_to_row(lift))
+        self.session.flush()
+        if self.ropes.exists(lift.rope.serial):
+            self.ropes.attach(lift.rope.serial, lift.code)
+        else:
+            self.ropes.add(lift.rope, lift.code)
 
     def get(self, code: LiftCode) -> Lift:
         row = self.session.get(LiftRow, code)
