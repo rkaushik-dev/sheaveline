@@ -13,15 +13,21 @@ from sheaveline.reports.morning import (
     Morning,
 )
 from sheaveline.reports.ropefile import RopeFilePage
+from sheaveline.reports.season import (
+    DayRecord,
+    SeasonSummary,
+)
 
 __all__ = [
     "Align",
     "Column",
+    "DayRecord",
     "MachineLine",
     "Morning",
     "PAGE_WIDTH",
     "Report",
     "ReportError",
     "RopeFilePage",
+    "SeasonSummary",
     "Table",
 ]
