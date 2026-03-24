@@ -5,6 +5,10 @@ from sheaveline.capacity.dwell import (
     TerminalCheck,
     TerminalTransit,
 )
+from sheaveline.capacity.queue import (
+    Maze,
+    Queue,
+)
 from sheaveline.capacity.spacing import (
     MINIMUM_INTERVAL,
     CapacityError,
@@ -22,6 +26,8 @@ __all__ = [
     "LineSpacing",
     "LoadingGate",
     "MINIMUM_INTERVAL",
+    "Maze",
+    "Queue",
     "SpacingSurvey",
     "TerminalCheck",
     "TerminalTransit",
