@@ -1,5 +1,11 @@
 """The daily running of the machines, from the morning walk to the last sweep."""
 
+from sheaveline.ops.downhill import (
+    DownhillAuthorisation,
+    DownhillCheck,
+    DownhillPolicy,
+    DownhillReason,
+)
 from sheaveline.ops.logbook import (
     DayLog,
     EntryKind,
@@ -34,6 +40,10 @@ __all__ = [
     "CheckOutcome",
     "CheckResult",
     "DayLog",
+    "DownhillAuthorisation",
+    "DownhillCheck",
+    "DownhillPolicy",
+    "DownhillReason",
     "EntryKind",
     "LogEntry",
     "MeterHistory",
