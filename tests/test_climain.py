@@ -140,6 +140,7 @@ def test_a_refusal_reaching_a_command_prints_without_a_traceback(runner, tmp_pat
     reply = runner.invoke(cli, ["--database", missing, "check"])
     assert reply.exit_code != 0
     assert "Traceback" not in reply.output
+    assert "run setup" in reply.output
 
 
 def test_every_command_carries_a_line_of_help(runner):
@@ -178,3 +179,35 @@ def test_a_sheaveline_error_subclass_is_caught_by_the_wrapper():
 
     with pytest.raises(SystemExit):
         refuse()
+
+
+def test_a_database_that_will_not_open_is_a_sentence_too(runner, tmp_path):
+    nowhere = "sqlite+pysqlite:////no/such/place/office.sqlite3"
+    reply = runner.invoke(cli, ["--database", nowhere, "setup"])
+    assert reply.exit_code == 2
+    assert "the database will not answer" in reply.output
+    assert "Traceback" not in reply.output
+
+
+def test_a_database_that_has_not_been_set_up_says_to_run_setup(runner, tmp_path):
+    empty = f"sqlite+pysqlite:///{tmp_path / 'empty.sqlite3'}"
+    reply = runner.invoke(cli, ["--database", empty, "check"])
+    assert reply.exit_code == 1
+    assert "run setup" in reply.output
+    assert "Traceback" not in reply.output
+
+
+def test_a_database_failure_is_told_apart_from_one_that_is_merely_empty(runner, tmp_path):
+    nowhere = "sqlite+pysqlite:////no/such/place/office.sqlite3"
+    empty = f"sqlite+pysqlite:///{tmp_path / 'empty.sqlite3'}"
+    assert runner.invoke(cli, ["--database", nowhere, "check"]).exit_code == 2
+    assert runner.invoke(cli, ["--database", empty, "check"]).exit_code == 1
+
+
+def test_the_driver_sentence_is_one_line(runner):
+    from sqlalchemy.exc import OperationalError
+
+    from sheaveline.cli.main import _first_line
+
+    error = OperationalError("select 1", {}, Exception("unable to open database file"))
+    assert "\n" not in _first_line(error)

@@ -5,10 +5,13 @@ happens here: loading a machine from a survey, printing the morning report,
 walking the rope, closing a work order at the end of the day.
 
 Two decisions worth stating. The database url comes from the environment first
-so the office machine never has it typed into a command, and a domain refusal is
-printed as one sentence and an exit code rather than a traceback, because the
-person reading it is a lift mechanic and a traceback tells them nothing they can
-act on.
+so the office machine never has it typed into a command, and a refusal is printed
+as one sentence and an exit code rather than a traceback, because the person
+reading it is a lift mechanic and a traceback tells them nothing they can act on.
+
+A database that will not open counts as a refusal. It is the commonest failure
+there is, it is nearly always a path or a permission, and the forty lines of
+driver stack under it say nothing the person at the keyboard can use.
 """
 
 from __future__ import annotations
@@ -20,7 +23,8 @@ from functools import wraps
 from typing import Any, TypeVar
 
 import click
-from sqlalchemy import Engine
+from sqlalchemy import Engine, inspect
+from sqlalchemy.exc import SQLAlchemyError
 
 from sheaveline import __version__
 from sheaveline.errors import SheavelineError
@@ -58,7 +62,7 @@ class Console:
 
 
 def handles_refusals(command: Callable[..., Result]) -> Callable[..., Result]:
-    """Print a domain refusal as a sentence and stop, rather than as a traceback."""
+    """Print a refusal as a sentence and stop, rather than as a traceback."""
 
     @wraps(command)
     def run(*args: Any, **kwargs: Any) -> Result:
@@ -67,8 +71,16 @@ def handles_refusals(command: Callable[..., Result]) -> Callable[..., Result]:
         except SheavelineError as refusal:
             click.echo(f"{type(refusal).__name__}: {refusal}", err=True)
             raise SystemExit(1) from refusal
+        except SQLAlchemyError as broken:
+            click.echo(f"the database will not answer: {_first_line(broken)}", err=True)
+            raise SystemExit(2) from broken
 
     return run
+
+
+def _first_line(error: Exception) -> str:
+    """The driver's own sentence, without the stack it usually arrives with."""
+    return str(error).strip().splitlines()[0]
 
 
 @click.group()
@@ -109,6 +121,10 @@ def tables(console: Console) -> None:
 @handles_refusals
 def check(console: Console) -> None:
     """Say whether the database answers and what is in it."""
+    built = set(inspect(console.engine).get_table_names())
+    if not built.issuperset(table_names()):
+        console.problem(f"{console.engine.url} has no tables yet, run setup")
+        raise SystemExit(1)
     with console.work() as work:
         lifts = work.lifts.codes()
         ropes = work.ropes.all()
