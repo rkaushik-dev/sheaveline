@@ -13,6 +13,11 @@ from sheaveline.upkeep.library import (
     library_for,
     requirement,
 )
+from sheaveline.upkeep.partlife import (
+    FittedPart,
+    PartKind,
+    PartRegister,
+)
 from sheaveline.upkeep.record import (
     Defect,
     DefectLevel,
@@ -41,8 +46,11 @@ __all__ = [
     "Defect",
     "DefectLevel",
     "DueItem",
+    "FittedPart",
     "InspectionRecord",
     "Interval",
+    "PartKind",
+    "PartRegister",
     "Priority",
     "RecordBook",
     "Requirement",
