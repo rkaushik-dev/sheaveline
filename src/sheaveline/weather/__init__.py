@@ -1,5 +1,10 @@
 """What the weather is doing, and what that stops."""
 
+from sheaveline.weather.forecast import (
+    Confidence,
+    Forecast,
+    ForecastPeriod,
+)
 from sheaveline.weather.hold import (
     Hold,
     HoldReason,
@@ -24,6 +29,9 @@ from sheaveline.weather.policy import (
 
 __all__ = [
     "ClassPolicy",
+    "Confidence",
+    "Forecast",
+    "ForecastPeriod",
     "Hold",
     "HoldReason",
     "HoldRecord",
