@@ -309,3 +309,59 @@ def test_a_rope_can_be_taken_off_a_machine_without_being_deleted(session):
     assert serial in {one.serial for one in ropes.spares()}
     with pytest.raises(StorageError):
         ropes.detach(RopeSerial.parse("FAT-2019-99999"))
+
+
+def test_every_repository_shares_the_one_piece_of_session_plumbing(session):
+    from sheaveline.persistence.repositories import Repository
+
+    for kind in (
+        LiftRepository,
+        RopeRepository,
+        WearSurveyRepository,
+        IncidentRepository,
+        WorkOrderRepository,
+    ):
+        assert issubclass(kind, Repository)
+        assert kind(session).session is session
+
+
+def test_the_fetch_helper_says_which_row_was_asked_for(session):
+    from sheaveline.persistence.models.plant import LiftRow
+    from sheaveline.persistence.repositories import Repository
+
+    plumbing = Repository(session)
+    with pytest.raises(StorageError) as refused:
+        plumbing.fetch(LiftRow, JOHN_PAUL, "there is no lift JP")
+    assert "there is no lift JP" in str(refused.value)
+
+
+def test_the_find_helper_hands_back_nothing_rather_than_complaining(session):
+    from sheaveline.persistence.models.plant import LiftRow
+    from sheaveline.persistence.repositories import Repository
+
+    assert Repository(session).find(LiftRow, JOHN_PAUL) is None
+    stocked(session)
+    assert Repository(session).find(LiftRow, JOHN_PAUL) is not None
+
+
+def test_the_one_helper_complains_when_a_query_finds_nothing(session):
+    from sqlalchemy import select
+
+    from sheaveline.persistence.models.plant import LiftRow
+    from sheaveline.persistence.repositories import Repository
+
+    plumbing = Repository(session)
+    statement = select(LiftRow).where(LiftRow.name == "Nothing")
+    with pytest.raises(StorageError):
+        plumbing.one(statement, "no such machine")
+
+
+def test_the_many_helper_hands_back_a_list(session):
+    from sqlalchemy import select
+
+    from sheaveline.persistence.models.plant import LiftRow
+    from sheaveline.persistence.repositories import Repository
+
+    stocked(session)
+    found = Repository(session).many(select(LiftRow).order_by(LiftRow.code))
+    assert [one.code for one in found] == [JOHN_PAUL, STRAWBERRY]

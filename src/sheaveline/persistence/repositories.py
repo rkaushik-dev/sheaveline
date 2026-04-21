@@ -4,13 +4,20 @@ Each one takes a session and hands back domain objects rather than rows, so
 nothing above this line ever imports a model. Everything that reads a lift reads
 it through here, which is the only way the mapper stays the single place the two
 shapes meet.
+
+The seven of them used to open with the same three lines of constructor and then
+repeat the same fetch and complain pattern fourteen times between them, each with
+its own wording for the same failure. That is on the base class now, and what is
+left in each repository is the part that is about ropes or incidents rather than
+about sessions.
 """
 
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import TypeVar
 
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
 from sheaveline.board.filing import Filing, FilingKind
@@ -49,12 +56,39 @@ from sheaveline.weather.observation import (
     Station,
 )
 
+RowT = TypeVar("RowT")
 
-class RopeRepository:
-    """Haul ropes, by their mill serial."""
+
+class Repository:
+    """The session plumbing every repository would otherwise repeat."""
+
+    __slots__ = ("session",)
 
     def __init__(self, session: Session) -> None:
         self.session = session
+
+    def fetch(self, kind: type[RowT], key: object, missing: str) -> RowT:
+        """Get a row by its key, or say which one was asked for."""
+        row = self.session.get(kind, key)
+        if row is None:
+            raise StorageError(missing)
+        return row
+
+    def find(self, kind: type[RowT], key: object) -> RowT | None:
+        return self.session.get(kind, key)
+
+    def one(self, statement: Select[tuple[RowT]], missing: str) -> RowT:
+        row = self.session.scalar(statement)
+        if row is None:
+            raise StorageError(missing)
+        return row
+
+    def many(self, statement: Select[tuple[RowT]]) -> list[RowT]:
+        return list(self.session.scalars(statement))
+
+
+class RopeRepository(Repository):
+    """Haul ropes, by their mill serial."""
 
     def add(self, rope: HaulRope, lift_code: LiftCode | None = None) -> None:
         if self.exists(rope.serial):
@@ -62,10 +96,7 @@ class RopeRepository:
         self.session.add(rope_to_row(rope, lift_code))
 
     def get(self, serial: RopeSerial) -> HaulRope:
-        row = self.session.get(HaulRopeRow, serial)
-        if row is None:
-            raise StorageError(f"there is no rope {serial}")
-        return rope_from_row(row)
+        return rope_from_row(self.fetch(HaulRopeRow, serial, f"there is no rope {serial}"))
 
     def exists(self, serial: RopeSerial) -> bool:
         return self.session.get(HaulRopeRow, serial) is not None
@@ -90,31 +121,24 @@ class RopeRepository:
         claim it. A rope that is on some other machine is refused, because a
         rope in two places is a records error rather than a spare.
         """
-        row = self.session.get(HaulRopeRow, serial)
-        if row is None:
-            raise StorageError(f"there is no rope {serial}")
+        row = self.fetch(HaulRopeRow, serial, f"there is no rope {serial}")
         if row.lift_code is not None and row.lift_code != lift_code:
             raise StorageError(f"rope {serial} is already on {row.lift_code}")
         row.lift_code = lift_code
 
     def detach(self, serial: RopeSerial) -> None:
-        row = self.session.get(HaulRopeRow, serial)
-        if row is None:
-            raise StorageError(f"there is no rope {serial}")
-        row.lift_code = None
+        found = self.fetch(HaulRopeRow, serial, f"there is no rope {serial}")
+        found.lift_code = None
 
     def remove(self, serial: RopeSerial) -> None:
-        row = self.session.get(HaulRopeRow, serial)
-        if row is None:
-            raise StorageError(f"there is no rope {serial}")
-        self.session.delete(row)
+        self.session.delete(self.fetch(HaulRopeRow, serial, f"there is no rope {serial}"))
 
 
-class LiftRepository:
+class LiftRepository(Repository):
     """Machines, by the code painted on the terminal."""
 
     def __init__(self, session: Session) -> None:
-        self.session = session
+        super().__init__(session)
         self.ropes = RopeRepository(session)
 
     def add(self, lift: Lift) -> None:
@@ -130,9 +154,7 @@ class LiftRepository:
             self.ropes.add(lift.rope, lift.code)
 
     def get(self, code: LiftCode) -> Lift:
-        row = self.session.get(LiftRow, code)
-        if row is None:
-            raise StorageError(f"there is no lift {code}")
+        row = self.fetch(LiftRow, code, f"there is no lift {code}")
         if not row.ropes:
             raise StorageError(f"lift {code} has no rope on it")
         return lift_from_row(row, rope_from_row(row.ropes[0]))
@@ -149,17 +171,11 @@ class LiftRepository:
         return list(rows)
 
     def remove(self, code: LiftCode) -> None:
-        row = self.session.get(LiftRow, code)
-        if row is None:
-            raise StorageError(f"there is no lift {code}")
-        self.session.delete(row)
+        self.session.delete(self.fetch(LiftRow, code, f"there is no lift {code}"))
 
 
-class WearSurveyRepository:
+class WearSurveyRepository(Repository):
     """Rope walks, by the rope they were taken on."""
-
-    def __init__(self, session: Session) -> None:
-        self.session = session
 
     def add(self, survey: WearSurvey) -> None:
         self.session.add(wear_to_row(survey))
@@ -193,11 +209,8 @@ class WearSurveyRepository:
         return len(self.for_rope(rope))
 
 
-class IncidentRepository:
+class IncidentRepository(Repository):
     """Incidents, by the machine and the moment."""
-
-    def __init__(self, session: Session) -> None:
-        self.session = session
 
     def add(self, incident: Incident) -> None:
         self.session.add(
@@ -228,9 +241,7 @@ class IncidentRepository:
         return row.id
 
     def get(self, incident_id: int) -> tuple[Incident, FilingNumber | None]:
-        row = self.session.get(IncidentRow, incident_id)
-        if row is None:
-            raise StorageError(f"there is no incident {incident_id}")
+        row = self.fetch(IncidentRow, incident_id, f"there is no incident {incident_id}")
         return self._to_domain(row), row.filing_number
 
     def numbered_for_lift(self, code: LiftCode) -> list[tuple[int, Incident, FilingNumber | None]]:
@@ -253,9 +264,7 @@ class IncidentRepository:
         filed_by: str,
     ) -> Filing:
         """Take the next board number, write the filing and hang it on the incident."""
-        row = self.session.get(IncidentRow, incident_id)
-        if row is None:
-            raise StorageError(f"there is no incident {incident_id}")
+        row = self.fetch(IncidentRow, incident_id, f"there is no incident {incident_id}")
         if row.filing_number is not None:
             raise StorageError(f"incident {incident_id} is already filed")
         number = take_number(self.session, "UT", filed.year)
@@ -307,11 +316,8 @@ class IncidentRepository:
         )
 
 
-class InspectionRepository:
+class InspectionRepository(Repository):
     """Inspection records and the defects hanging off them."""
-
-    def __init__(self, session: Session) -> None:
-        self.session = session
 
     def add(self, record: InspectionRecord) -> None:
         row = InspectionRecordRow(
@@ -388,11 +394,8 @@ class InspectionRepository:
         )
 
 
-class WorkOrderRepository:
+class WorkOrderRepository(Repository):
     """Work orders, by their number."""
-
-    def __init__(self, session: Session) -> None:
-        self.session = session
 
     def add(self, order: WorkOrder) -> None:
         if self.session.get(WorkOrderRow, order.number) is not None:
@@ -412,10 +415,7 @@ class WorkOrderRepository:
         )
 
     def get(self, number: int) -> WorkOrder:
-        row = self.session.get(WorkOrderRow, number)
-        if row is None:
-            raise StorageError(f"there is no work order {number}")
-        return self._to_domain(row)
+        return self._to_domain(self.fetch(WorkOrderRow, number, f"there is no work order {number}"))
 
     def next_number(self) -> int:
         highest = self.session.scalar(
@@ -439,9 +439,7 @@ class WorkOrderRepository:
         return [self._to_domain(row) for row in rows]
 
     def close(self, number: int, on: date, by: str) -> WorkOrder:
-        row = self.session.get(WorkOrderRow, number)
-        if row is None:
-            raise StorageError(f"there is no work order {number}")
+        row = self.fetch(WorkOrderRow, number, f"there is no work order {number}")
         closed = self._to_domain(row).close(on, by)
         row.closed = closed.closed
         row.closed_by = closed.closed_by
@@ -461,11 +459,8 @@ class WorkOrderRepository:
         )
 
 
-class WeatherRepository:
+class WeatherRepository(Repository):
     """Stations and everything they have reported."""
-
-    def __init__(self, session: Session) -> None:
-        self.session = session
 
     def add_station(self, station: Station) -> None:
         if self.session.get(StationRow, station.name) is not None:
@@ -473,9 +468,7 @@ class WeatherRepository:
         self.session.add(StationRow(name=station.name, elevation=station.elevation))
 
     def station(self, name: str) -> Station:
-        row = self.session.get(StationRow, name)
-        if row is None:
-            raise StorageError(f"there is no station called {name}")
+        row = self.fetch(StationRow, name, f"there is no station called {name}")
         return Station(row.name, row.elevation)
 
     def stations(self) -> list[Station]:
