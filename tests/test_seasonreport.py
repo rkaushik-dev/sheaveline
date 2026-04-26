@@ -187,3 +187,71 @@ def test_the_records_come_back_sorted_by_day_then_machine():
         (16, "JP"),
         (16, "SB"),
     ]
+
+
+def test_every_machine_is_tallied_once_on_the_way_in():
+    held = summary(
+        record(lift=JOHN_PAUL, day=date(2025, 1, 15)),
+        record(lift=JOHN_PAUL, day=date(2025, 1, 16)),
+        record(lift=STRAWBERRY, day=date(2025, 1, 15)),
+    )
+    assert set(held.tallies) == {JOHN_PAUL, STRAWBERRY}
+    assert len(held.tally(JOHN_PAUL).days) == 2
+    assert len(held.tally(STRAWBERRY).days) == 1
+
+
+def test_the_tally_holds_the_same_answers_the_summary_gives():
+    held = summary(
+        record(day=date(2025, 1, 15), scheduled_hours=7, charged_minutes=30),
+        record(day=date(2025, 1, 16), scheduled_hours=8, opened=False),
+    )
+    one = held.tally(JOHN_PAUL)
+    assert one.days_open == held.days_open(JOHN_PAUL)
+    assert one.days_shut == held.days_shut(JOHN_PAUL)
+    assert one.scheduled == held.scheduled(JOHN_PAUL)
+    assert one.running == held.running(JOHN_PAUL)
+    assert one.downtime == held.downtime(JOHN_PAUL)
+    assert one.chargeable == held.chargeable(JOHN_PAUL)
+    assert one.availability() == held.availability(JOHN_PAUL)
+    assert one.worst_day() == held.worst_day(JOHN_PAUL)
+
+
+def test_a_machine_with_no_days_tallies_to_nothing_rather_than_failing():
+    held = summary(record(lift=JOHN_PAUL))
+    empty = held.tally(STRAWBERRY)
+    assert empty.days == ()
+    assert empty.days_open == 0
+    assert empty.scheduled.is_zero()
+    assert empty.availability() == Decimal(0)
+    assert empty.worst_day() is None
+
+
+def test_the_stop_counts_are_added_up_once_and_handed_out_as_copies():
+    held = summary(
+        record(stops=[StopKind.WEATHER, StopKind.WEATHER]),
+        record(day=date(2025, 1, 16), stops=[StopKind.WEATHER, StopKind.POWER]),
+    )
+    assert held.tally(JOHN_PAUL).stops == {StopKind.WEATHER: 3, StopKind.POWER: 1}
+    handed = held.stops_by_kind(JOHN_PAUL)
+    handed[StopKind.WEATHER] = 99
+    assert held.tally(JOHN_PAUL).stops[StopKind.WEATHER] == 3
+
+
+def test_the_records_are_only_walked_once_however_many_questions_are_asked():
+    days = [
+        record(lift=lift, day=date(2025, 1, 1) + timedelta(days=offset))
+        for lift in (JOHN_PAUL, STRAWBERRY)
+        for offset in range(40)
+    ]
+    walked = 0
+
+    class Counted(tuple):  # type: ignore[type-arg]
+        def __iter__(self):
+            nonlocal walked
+            walked += 1
+            return super().__iter__()
+
+    held = summary(*days)
+    object.__setattr__(held, "records", Counted(held.records))
+    held.render()
+    assert walked == 0
