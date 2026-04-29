@@ -14,10 +14,10 @@ about sessions.
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import TypeVar
 
-from sqlalchemy import Select, select
+from sqlalchemy import Select, or_, select
 from sqlalchemy.orm import Session
 
 from sheaveline.board.filing import Filing, FilingKind
@@ -25,7 +25,21 @@ from sheaveline.board.incident import Incident
 from sheaveline.measures.duration import Duration
 from sheaveline.measures.length import Length
 from sheaveline.measures.wind import Wind
+from sheaveline.ops.logbook import DayLog
+from sheaveline.ops.meters import MeterHistory, MeterReading
+from sheaveline.ops.stop import StopEvent, StopLog
 from sheaveline.persistence.base import StorageError
+from sheaveline.persistence.mappers.ops import (
+    day_log_from_row,
+    day_log_to_row,
+    hold_from_row,
+    hold_to_row,
+    meter_from_row,
+    meter_to_row,
+    stop_from_row,
+    stop_log_from_rows,
+    stop_to_row,
+)
 from sheaveline.persistence.mappers.plant import (
     lift_from_row,
     lift_to_row,
@@ -34,6 +48,7 @@ from sheaveline.persistence.mappers.plant import (
 )
 from sheaveline.persistence.mappers.ropework import wear_from_row, wear_to_row
 from sheaveline.persistence.models.board import FilingRow, IncidentRow
+from sheaveline.persistence.models.ops import DayLogRow, HoldRow, MeterReadingRow, StopRow
 from sheaveline.persistence.models.plant import HaulRopeRow, LiftRow
 from sheaveline.persistence.models.ropework import WearSurveyRow
 from sheaveline.persistence.models.upkeep import (
@@ -49,6 +64,7 @@ from sheaveline.plant.rope import HaulRope
 from sheaveline.ropework.wear import WearSurvey
 from sheaveline.upkeep.record import Defect, InspectionRecord
 from sheaveline.upkeep.workorder import Priority, WorkOrder
+from sheaveline.weather.holdlog import HoldRecord, HoldRegister
 from sheaveline.weather.observation import (
     STALE_AFTER,
     Observation,
@@ -550,3 +566,178 @@ class WeatherRepository(Repository):
             rime=row.rime,
             lightning_within=row.lightning_within,
         )
+
+
+class DayLogRepository(Repository):
+    """The day book, and the stops and meters that do not fit inside a day."""
+
+    def __init__(self, session: Session) -> None:
+        super().__init__(session)
+        self.lifts = LiftRepository(session)
+
+    def add(self, log: DayLog) -> None:
+        if self.find_log(log.lift, log.day) is not None:
+            raise StorageError(f"{log.lift} already has a log for {log.day.isoformat()}")
+        self.session.add(day_log_to_row(log))
+        if log.meter is not None:
+            self.read_meter(log.meter)
+        if log.stops is not None:
+            for stop in log.stops.stops:
+                self.stop(stop)
+        self.session.flush()
+
+    def find_log(self, code: LiftCode, day: date) -> DayLogRow | None:
+        return self.session.scalar(
+            select(DayLogRow).where(DayLogRow.lift_code == code, DayLogRow.day == day)
+        )
+
+    def get(self, code: LiftCode, day: date) -> DayLog:
+        row = self.one(
+            select(DayLogRow).where(DayLogRow.lift_code == code, DayLogRow.day == day),
+            f"there is no log for {code} on {day.isoformat()}",
+        )
+        return day_log_from_row(
+            row,
+            self.lifts.get(code),
+            stops=self.stops_on(code, day),
+            meter=self.meter_on(code, day),
+        )
+
+    def days_logged(self, code: LiftCode) -> list[date]:
+        return [
+            one.day
+            for one in self.many(
+                select(DayLogRow).where(DayLogRow.lift_code == code).order_by(DayLogRow.day)
+            )
+        ]
+
+    def between(self, code: LiftCode, start: date, end: date) -> list[DayLog]:
+        lift = self.lifts.get(code)
+        rows = self.many(
+            select(DayLogRow)
+            .where(
+                DayLogRow.lift_code == code,
+                DayLogRow.day >= start,
+                DayLogRow.day <= end,
+            )
+            .order_by(DayLogRow.day)
+        )
+        return [
+            day_log_from_row(
+                one,
+                lift,
+                stops=self.stops_on(code, one.day),
+                meter=self.meter_on(code, one.day),
+            )
+            for one in rows
+        ]
+
+    def replace(self, log: DayLog) -> None:
+        """Rewriting a day, which happens when the log is signed off next morning."""
+        found = self.find_log(log.lift, log.day)
+        if found is None:
+            raise StorageError(f"there is no log for {log.lift} on {log.day.isoformat()}")
+        self.session.delete(found)
+        self.session.flush()
+        self.session.add(day_log_to_row(log))
+        self.session.flush()
+
+    def stop(self, event: StopEvent) -> None:
+        clash = self.session.scalar(
+            select(StopRow).where(StopRow.lift_code == event.lift, StopRow.stopped == event.stopped)
+        )
+        if clash is not None:
+            raise StorageError(f"{event.lift} is already stopped at {event.stopped:%H:%M}")
+        self.session.add(stop_to_row(event))
+        self.session.flush()
+
+    def restart(
+        self,
+        code: LiftCode,
+        stopped: datetime,
+        when: datetime,
+        by: str,
+        line_checked: bool = False,
+    ) -> StopEvent:
+        """The domain decides whether that is allowed, not the table."""
+        row = self.one(
+            select(StopRow).where(StopRow.lift_code == code, StopRow.stopped == stopped),
+            f"there is no stop on {code} at {stopped:%H:%M}",
+        )
+        restarted = stop_from_row(row).restart(when, by, line_checked)
+        row.restarted = restarted.restarted
+        row.restarted_by = restarted.restarted_by
+        row.line_checked = restarted.line_checked
+        self.session.flush()
+        return restarted
+
+    def stops_on(self, code: LiftCode, day: date) -> StopLog:
+        """Every stop that touched the day, which is not every stop that began on it."""
+        opened = datetime.combine(day, time.min)
+        shut = datetime.combine(day, time.max)
+        rows = self.many(
+            select(StopRow)
+            .where(
+                StopRow.lift_code == code,
+                StopRow.stopped <= shut,
+                or_(StopRow.restarted.is_(None), StopRow.restarted >= opened),
+            )
+            .order_by(StopRow.stopped)
+        )
+        return stop_log_from_rows(code, rows)
+
+    def open_stops(self, code: LiftCode | None = None) -> list[StopEvent]:
+        statement = select(StopRow).where(StopRow.restarted.is_(None))
+        if code is not None:
+            statement = statement.where(StopRow.lift_code == code)
+        return [stop_from_row(one) for one in self.many(statement.order_by(StopRow.stopped))]
+
+    def call_hold(self, record: HoldRecord) -> None:
+        self.session.add(hold_to_row(record))
+        self.session.flush()
+
+    def clear_hold(self, code: LiftCode, started: datetime, when: datetime, by: str) -> HoldRecord:
+        row = self.one(
+            select(HoldRow).where(HoldRow.lift_code == code, HoldRow.started == started),
+            f"there is no hold on {code} from {started:%H:%M}",
+        )
+        cleared = hold_from_row(row).closed(when, by)
+        row.ended = cleared.ended
+        row.ended_by = cleared.ended_by
+        self.session.flush()
+        return cleared
+
+    def holds(self, code: LiftCode | None = None) -> HoldRegister:
+        statement = select(HoldRow)
+        if code is not None:
+            statement = statement.where(HoldRow.lift_code == code)
+        rows = self.many(statement.order_by(HoldRow.started))
+        return HoldRegister.of([hold_from_row(one) for one in rows])
+
+    def read_meter(self, reading: MeterReading) -> None:
+        clash = self.session.scalar(
+            select(MeterReadingRow).where(
+                MeterReadingRow.lift_code == reading.lift,
+                MeterReadingRow.day == reading.day,
+            )
+        )
+        if clash is not None:
+            raise StorageError(f"{reading.lift} was already read on {reading.day.isoformat()}")
+        self.session.add(meter_to_row(reading))
+        self.session.flush()
+
+    def meter_on(self, code: LiftCode, day: date) -> MeterReading | None:
+        row = self.session.scalar(
+            select(MeterReadingRow).where(
+                MeterReadingRow.lift_code == code, MeterReadingRow.day == day
+            )
+        )
+        return None if row is None else meter_from_row(row)
+
+    def meters(self, code: LiftCode) -> MeterHistory:
+        rows = self.many(
+            select(MeterReadingRow)
+            .where(MeterReadingRow.lift_code == code)
+            .order_by(MeterReadingRow.day)
+        )
+        return MeterHistory.of(code, [meter_from_row(one) for one in rows])

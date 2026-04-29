@@ -1,5 +1,16 @@
 """Domain to rows and rows to domain, written next to each other on purpose."""
 
+from sheaveline.persistence.mappers.ops import (
+    day_log_from_row,
+    day_log_to_row,
+    hold_from_row,
+    hold_to_row,
+    meter_from_row,
+    meter_to_row,
+    stop_from_row,
+    stop_log_from_rows,
+    stop_to_row,
+)
 from sheaveline.persistence.mappers.plant import (
     lift_from_row,
     lift_to_row,
@@ -20,6 +31,15 @@ from sheaveline.persistence.mappers.ropework import (
 )
 
 __all__ = [
+    "day_log_from_row",
+    "day_log_to_row",
+    "hold_from_row",
+    "hold_to_row",
+    "meter_from_row",
+    "meter_to_row",
+    "stop_from_row",
+    "stop_log_from_rows",
+    "stop_to_row",
     "breaks_from_row",
     "breaks_to_row",
     "lift_from_row",
