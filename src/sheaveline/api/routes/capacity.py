@@ -17,8 +17,8 @@ from decimal import Decimal
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
-from sheaveline.api.deps import Reader, Work
-from sheaveline.api.errors import NotFound
+from sheaveline.api.deps import Reader
+from sheaveline.api.lookups import Look, Lookup
 from sheaveline.api.schemas.measures import (
     DurationText,
     LengthFeet,
@@ -33,20 +33,8 @@ from sheaveline.line.geometry import LineGeometry
 from sheaveline.measures.length import Length
 from sheaveline.measures.load import Load
 from sheaveline.measures.speed import Speed
-from sheaveline.persistence.base import StorageError
-from sheaveline.persistence.uow import UnitOfWork
-from sheaveline.plant.identity import LiftCode
-from sheaveline.plant.lift import Lift
 
 router = APIRouter(prefix="/lifts/{code}", tags=["capacity"])
-
-
-def _lift(work: UnitOfWork, code: str) -> Lift:
-    wanted = LiftCode.parse(code)
-    try:
-        return work.lifts.get(wanted)
-    except StorageError as missing:
-        raise NotFound(f"there is no lift {wanted}") from missing
 
 
 class SpacingOut(BaseModel):
@@ -92,10 +80,10 @@ def read_spacing(
     code: str,
     carriers: int | None = Query(default=None, ge=1),
     speed: str | None = Query(default=None),
-    work: UnitOfWork = Work,
+    look: Lookup = Look,
     key: ApiKey = Reader,
 ) -> SpacingOut:
-    lift = _lift(work, code)
+    lift = look.lift(code)
     line = LineSpacing.of(lift, None if speed is None else Speed.parse(speed))
     if carriers is not None:
         line = line.with_carriers(carriers)
@@ -117,10 +105,10 @@ def read_capacity(
     carriers: int | None = Query(default=None, ge=1),
     speed: str | None = Query(default=None),
     occupancy: str = Query(default="0.85"),
-    work: UnitOfWork = Work,
+    look: Lookup = Look,
     key: ApiKey = Reader,
 ) -> CapacityOut:
-    lift = _lift(work, code)
+    lift = look.lift(code)
     line = LineSpacing.of(lift, None if speed is None else Speed.parse(speed))
     if carriers is not None:
         line = line.with_carriers(carriers)
@@ -141,10 +129,10 @@ def read_geometry(
     code: str,
     snow: str = Query(default="0 ft"),
     tension: str = Query(default="34500 lb"),
-    work: UnitOfWork = Work,
+    look: Lookup = Look,
     key: ApiKey = Reader,
 ) -> GeometryOut:
-    lift = _lift(work, code)
+    lift = look.lift(code)
     line = LineSpacing.of(lift)
     weight = line_weight(
         lift.rope.spec.weight,

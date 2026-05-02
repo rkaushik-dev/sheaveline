@@ -14,7 +14,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Query, status
 
 from sheaveline.api.deps import Manager, Mechanic, Reader, Today, Work
-from sheaveline.api.errors import NotFound
+from sheaveline.api.lookups import Look, Lookup
 from sheaveline.api.schemas.upkeep import (
     CloseOrderIn,
     DefectOut,
@@ -24,20 +24,11 @@ from sheaveline.api.schemas.upkeep import (
     WorkOrderOut,
 )
 from sheaveline.api.security import ApiKey
-from sheaveline.persistence.base import StorageError
 from sheaveline.persistence.uow import UnitOfWork
-from sheaveline.plant.identity import LiftCode
 from sheaveline.upkeep.record import Defect, InspectionRecord
 from sheaveline.upkeep.workorder import Priority, WorkOrder
 
 router = APIRouter(tags=["upkeep"])
-
-
-def _known_lift(work: UnitOfWork, code: str) -> LiftCode:
-    wanted = LiftCode.parse(code)
-    if not work.lifts.exists(wanted):
-        raise NotFound(f"there is no lift {wanted}")
-    return wanted
 
 
 @router.post(
@@ -49,9 +40,10 @@ def record_inspection(
     code: str,
     body: InspectionIn,
     work: UnitOfWork = Work,
+    look: Lookup = Look,
     key: ApiKey = Mechanic,
 ) -> InspectionOut:
-    lift = _known_lift(work, code)
+    lift = look.lift_code(code)
     record = InspectionRecord.of(
         lift=lift,
         code=body.code,
@@ -71,15 +63,18 @@ def list_inspections(
     code: str,
     job: str | None = Query(default=None),
     work: UnitOfWork = Work,
+    look: Lookup = Look,
     key: ApiKey = Reader,
 ) -> list[InspectionOut]:
-    lift = _known_lift(work, code)
+    lift = look.lift_code(code)
     return [InspectionOut.of(one) for one in work.inspections.for_lift(lift, job)]
 
 
 @router.get("/lifts/{code}/defects", response_model=list[DefectOut])
-def list_defects(code: str, work: UnitOfWork = Work, key: ApiKey = Reader) -> list[DefectOut]:
-    lift = _known_lift(work, code)
+def list_defects(
+    code: str, work: UnitOfWork = Work, look: Lookup = Look, key: ApiKey = Reader
+) -> list[DefectOut]:
+    lift = look.lift_code(code)
     return [DefectOut.of(one) for one in work.inspections.open_defects(lift)]
 
 
@@ -92,9 +87,10 @@ def raise_order(
     code: str,
     body: WorkOrderIn,
     work: UnitOfWork = Work,
+    look: Lookup = Look,
     key: ApiKey = Mechanic,
 ) -> WorkOrderOut:
-    lift = _known_lift(work, code)
+    lift = look.lift_code(code)
     defect = Defect(where=body.where, level=body.level, detail=body.detail, raised=body.raised)
     order = WorkOrder.from_defect(work.work_orders.next_number(), lift, defect, body.raised_by)
     work.work_orders.add(order)
@@ -107,12 +103,13 @@ def list_orders(
     lift: str | None = Query(default=None),
     priority: Priority | None = Query(default=None),
     work: UnitOfWork = Work,
+    look: Lookup = Look,
     key: ApiKey = Reader,
 ) -> list[WorkOrderOut]:
     if priority is not None:
         found = work.work_orders.of_priority(priority)
     else:
-        code = None if lift is None else _known_lift(work, lift)
+        code = None if lift is None else look.lift_code(lift)
         found = work.work_orders.open_orders(code)
     return [WorkOrderOut.of(one) for one in found]
 
@@ -125,11 +122,8 @@ def list_overdue(
 
 
 @router.get("/work-orders/{number}", response_model=WorkOrderOut)
-def read_order(number: int, work: UnitOfWork = Work, key: ApiKey = Reader) -> WorkOrderOut:
-    try:
-        return WorkOrderOut.of(work.work_orders.get(number))
-    except StorageError as missing:
-        raise NotFound(f"there is no work order {number}") from missing
+def read_order(number: int, look: Lookup = Look, key: ApiKey = Reader) -> WorkOrderOut:
+    return WorkOrderOut.of(look.work_order(number))
 
 
 @router.post("/work-orders/{number}/closure", response_model=WorkOrderOut)
@@ -137,11 +131,10 @@ def close_order(
     number: int,
     body: CloseOrderIn,
     work: UnitOfWork = Work,
+    look: Lookup = Look,
     key: ApiKey = Manager,
 ) -> WorkOrderOut:
-    try:
-        closed = work.work_orders.close(number, body.closed, body.closed_by)
-    except StorageError as missing:
-        raise NotFound(f"there is no work order {number}") from missing
+    look.work_order(number)
+    closed = work.work_orders.close(number, body.closed, body.closed_by)
     work.commit()
     return WorkOrderOut.of(closed)

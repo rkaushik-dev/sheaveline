@@ -17,7 +17,7 @@ from datetime import date, datetime
 from fastapi import APIRouter, Query, status
 
 from sheaveline.api.deps import Manager, Operator, Reader, Today, Work
-from sheaveline.api.errors import NotFound
+from sheaveline.api.lookups import Look, Lookup
 from sheaveline.api.schemas.weather import (
     HoldOut,
     ObservationIn,
@@ -27,21 +27,10 @@ from sheaveline.api.schemas.weather import (
 )
 from sheaveline.api.security import ApiKey
 from sheaveline.measures.duration import Duration
-from sheaveline.persistence.base import StorageError
 from sheaveline.persistence.uow import UnitOfWork
-from sheaveline.plant.identity import LiftCode
-from sheaveline.plant.lift import Lift
 from sheaveline.weather.hold import WeatherHold
 
 router = APIRouter(tags=["weather"])
-
-
-def _lift(work: UnitOfWork, code: str) -> Lift:
-    wanted = LiftCode.parse(code)
-    try:
-        return work.lifts.get(wanted)
-    except StorageError as missing:
-        raise NotFound(f"there is no lift {wanted}") from missing
 
 
 @router.post("/weather/stations", response_model=StationOut, status_code=status.HTTP_201_CREATED)
@@ -63,12 +52,9 @@ def list_stations(work: UnitOfWork = Work, key: ApiKey = Reader) -> list[Station
     status_code=status.HTTP_201_CREATED,
 )
 def record_observation(
-    body: ObservationIn, work: UnitOfWork = Work, key: ApiKey = Operator
+    body: ObservationIn, work: UnitOfWork = Work, look: Lookup = Look, key: ApiKey = Operator
 ) -> ObservationOut:
-    try:
-        station = work.weather.station(body.station)
-    except StorageError as missing:
-        raise NotFound(f"there is no station called {body.station}") from missing
+    station = look.station(body.station)
     seen = body.to_domain(station)
     work.weather.record(seen)
     work.commit()
@@ -80,14 +66,12 @@ def list_observations(
     station: str | None = Query(default=None),
     since: datetime | None = Query(default=None),
     work: UnitOfWork = Work,
+    look: Lookup = Look,
     key: ApiKey = Reader,
 ) -> list[ObservationOut]:
     where = None
     if station is not None:
-        try:
-            where = work.weather.station(station)
-        except StorageError as missing:
-            raise NotFound(f"there is no station called {station}") from missing
+        where = look.station(station)
     moment = since or datetime.min
     return [ObservationOut.of(one) for one in work.weather.since(moment, where)]
 
@@ -98,10 +82,11 @@ def read_hold(
     now: datetime | None = Query(default=None),
     stale_after_minutes: int = Query(default=20, ge=1),
     work: UnitOfWork = Work,
+    look: Lookup = Look,
     key: ApiKey = Reader,
     today: date = Today,
 ) -> HoldOut:
-    lift = _lift(work, code)
+    lift = look.lift(code)
     moment = now or datetime.combine(today, datetime.min.time())
     station = work.weather.nearest_to(lift.top.rope_elevation)
     seen = work.weather.latest_fresh(station, moment, Duration.from_minutes(stale_after_minutes))

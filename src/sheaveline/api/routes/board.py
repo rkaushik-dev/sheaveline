@@ -13,7 +13,7 @@ from datetime import date, datetime
 from fastapi import APIRouter, Query, status
 
 from sheaveline.api.deps import Manager, Operator, Reader, Today, Work
-from sheaveline.api.errors import NotFound
+from sheaveline.api.lookups import Look, Lookup
 from sheaveline.api.schemas.board import (
     FilingIn,
     FilingOut,
@@ -26,16 +26,8 @@ from sheaveline.board.filing import FilingKind
 from sheaveline.measures.duration import Duration
 from sheaveline.persistence.base import StorageError
 from sheaveline.persistence.uow import UnitOfWork
-from sheaveline.plant.identity import LiftCode
 
 router = APIRouter(tags=["board"])
-
-
-def _known_lift(work: UnitOfWork, code: str) -> LiftCode:
-    wanted = LiftCode.parse(code)
-    if not work.lifts.exists(wanted):
-        raise NotFound(f"there is no lift {wanted}")
-    return wanted
 
 
 @router.post(
@@ -47,9 +39,10 @@ def record_incident(
     code: str,
     body: IncidentIn,
     work: UnitOfWork = Work,
+    look: Lookup = Look,
     key: ApiKey = Operator,
 ) -> IncidentOut:
-    lift = _known_lift(work, code)
+    lift = look.lift_code(code)
     incident = body.to_domain(lift)
     row_id = work.incidents.record(incident)
     work.commit()
@@ -57,8 +50,10 @@ def record_incident(
 
 
 @router.get("/lifts/{code}/incidents", response_model=list[IncidentOut])
-def list_for_lift(code: str, work: UnitOfWork = Work, key: ApiKey = Reader) -> list[IncidentOut]:
-    lift = _known_lift(work, code)
+def list_for_lift(
+    code: str, work: UnitOfWork = Work, look: Lookup = Look, key: ApiKey = Reader
+) -> list[IncidentOut]:
+    lift = look.lift_code(code)
     return [
         IncidentOut.of(row_id, incident, filing)
         for row_id, incident, filing in work.incidents.numbered_for_lift(lift)
@@ -95,11 +90,8 @@ def outstanding(
 
 
 @router.get("/incidents/{incident_id}", response_model=IncidentOut)
-def read_incident(incident_id: int, work: UnitOfWork = Work, key: ApiKey = Reader) -> IncidentOut:
-    try:
-        incident, filing = work.incidents.get(incident_id)
-    except StorageError as missing:
-        raise NotFound(f"there is no incident {incident_id}") from missing
+def read_incident(incident_id: int, look: Lookup = Look, key: ApiKey = Reader) -> IncidentOut:
+    incident, filing = look.incident(incident_id)
     return IncidentOut.of(incident_id, incident, filing)
 
 
@@ -112,12 +104,10 @@ def file_incident(
     incident_id: int,
     body: FilingIn,
     work: UnitOfWork = Work,
+    look: Lookup = Look,
     key: ApiKey = Manager,
 ) -> FilingOut:
-    try:
-        incident, existing = work.incidents.get(incident_id)
-    except StorageError as missing:
-        raise NotFound(f"there is no incident {incident_id}") from missing
+    incident, existing = look.incident(incident_id)
     if existing is not None:
         raise StorageError(f"incident {incident_id} was filed as {existing}")
     filing = work.incidents.file(
