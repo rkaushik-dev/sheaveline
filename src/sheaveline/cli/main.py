@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Callable
-from datetime import date
+from datetime import date, datetime, time
 from functools import wraps
 from typing import Any, TypeVar
 
@@ -40,12 +40,26 @@ Result = TypeVar("Result")
 class Console:
     """What every command is handed: a database and a way to write to the page."""
 
-    def __init__(self, engine: Engine, today: Callable[[], date] | None = None) -> None:
+    def __init__(
+        self,
+        engine: Engine,
+        now: Callable[[], datetime] | None = None,
+        today: Callable[[], date] | None = None,
+    ) -> None:
         self.engine = engine
-        self._today = today or date.today
+        self._now = now
+        self._today = today
+
+    def now(self) -> datetime:
+        """One clock, because a command that reads both wants them to agree."""
+        if self._now is not None:
+            return self._now()
+        if self._today is not None:
+            return datetime.combine(self._today(), time.min)
+        return datetime.now()
 
     def today(self) -> date:
-        return self._today()
+        return self.now().date()
 
     def work(self) -> UnitOfWork:
         return UnitOfWork.on(self.engine)
