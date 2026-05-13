@@ -734,10 +734,13 @@ class DayLogRepository(Repository):
         )
         return None if row is None else meter_from_row(row)
 
-    def meters(self, code: LiftCode) -> MeterHistory:
+    def meters(self, code: LiftCode) -> MeterHistory | None:
+        """Nothing rather than an empty history, which the domain refuses to make."""
         rows = self.many(
             select(MeterReadingRow)
             .where(MeterReadingRow.lift_code == code)
             .order_by(MeterReadingRow.day)
         )
+        if not rows:
+            return None
         return MeterHistory.of(code, [meter_from_row(one) for one in rows])
