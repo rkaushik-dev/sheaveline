@@ -7,6 +7,7 @@ from sheaveline.cli import (  # noqa: E402,F401  registered by import
     plant,
     report,
     rope,
+    upkeep,
 )
 from sheaveline.cli.main import Console, cli, run
 
