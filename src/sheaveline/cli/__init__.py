@@ -2,6 +2,7 @@
 
 # Importing a command module is what puts its commands on the group.
 from sheaveline.cli import (  # noqa: E402,F401  registered by import
+    board,
     day,
     drawing,
     plant,
