@@ -3,10 +3,8 @@ from datetime import date
 import pytest
 from click.testing import CliRunner
 
-from hill import john_paul, strawberry, wildcat
+from office import stocked
 from sheaveline.cli.main import cli
-from sheaveline.persistence.base import build_engine, create_schema
-from sheaveline.persistence.uow import UnitOfWork
 from sheaveline.reports.forms import PAGE_WIDTH
 
 
@@ -17,16 +15,7 @@ def runner():
 
 @pytest.fixture
 def database(tmp_path):
-    url = f"sqlite+pysqlite:///{tmp_path / 'office.sqlite3'}"
-    engine = build_engine(url)
-    create_schema(engine)
-    with UnitOfWork.on(engine) as work:
-        work.lifts.add(john_paul())
-        work.lifts.add(strawberry())
-        work.lifts.add(wildcat())
-        work.commit()
-    engine.dispose()
-    return url
+    return stocked(tmp_path)
 
 
 def run(runner, database, *args, **kwargs):

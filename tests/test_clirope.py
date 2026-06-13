@@ -2,12 +2,11 @@ import pytest
 from click.testing import CliRunner
 
 from hill import john_paul, strawberry, wildcat
+from office import copied
 from sheaveline.cli.main import cli
 from sheaveline.cli.rope import parse_reading
 from sheaveline.errors import ParseError
 from sheaveline.measures.length import Length
-from sheaveline.persistence.base import build_engine, create_schema
-from sheaveline.persistence.uow import UnitOfWork
 from sheaveline.reports.forms import PAGE_WIDTH
 
 SERIAL = "FAT-2019-04412"
@@ -18,18 +17,15 @@ def runner():
     return CliRunner()
 
 
+def two_machines_and_a_spare(work):
+    work.lifts.add(john_paul())
+    work.lifts.add(strawberry())
+    work.ropes.add(wildcat().rope)
+
+
 @pytest.fixture
 def database(tmp_path):
-    url = f"sqlite+pysqlite:///{tmp_path / 'office.sqlite3'}"
-    engine = build_engine(url)
-    create_schema(engine)
-    with UnitOfWork.on(engine) as work:
-        work.lifts.add(john_paul())
-        work.lifts.add(strawberry())
-        work.ropes.add(wildcat().rope)
-        work.commit()
-    engine.dispose()
-    return url
+    return copied(tmp_path, "ropes", two_machines_and_a_spare)
 
 
 def run(runner, database, *args, **kwargs):

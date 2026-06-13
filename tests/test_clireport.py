@@ -2,10 +2,11 @@ import pytest
 from click.testing import CliRunner
 
 from hill import john_paul, strawberry
+from office import stocked
 from sheaveline.cli import cli
 from sheaveline.ops.logbook import DayLog
 from sheaveline.ops.preop import STANDARD_SHEET, CheckOutcome, CheckResult, PreOpSheet
-from sheaveline.persistence.base import build_engine, create_schema
+from sheaveline.persistence.base import build_engine
 from sheaveline.persistence.uow import UnitOfWork
 from sheaveline.reports.forms import PAGE_WIDTH
 from sheaveline.schedule.hours import OperatingWindow
@@ -21,15 +22,7 @@ def runner():
 
 @pytest.fixture
 def database(tmp_path):
-    url = f"sqlite+pysqlite:///{tmp_path / 'office.sqlite3'}"
-    engine = build_engine(url)
-    create_schema(engine)
-    with UnitOfWork.on(engine) as work:
-        for machine in (john_paul(), strawberry()):
-            work.lifts.add(machine)
-        work.commit()
-    engine.dispose()
-    return url
+    return stocked(tmp_path, john_paul, strawberry)
 
 
 def run(runner, database, *args):

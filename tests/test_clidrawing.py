@@ -4,8 +4,8 @@ import pytest
 from click.testing import CliRunner
 
 from hill import john_paul, strawberry
+from office import empty
 from sheaveline.cli.main import cli
-from sheaveline.persistence.base import build_engine, create_schema
 
 
 @pytest.fixture
@@ -15,11 +15,7 @@ def runner():
 
 @pytest.fixture
 def database(tmp_path):
-    url = f"sqlite+pysqlite:///{tmp_path / 'office.sqlite3'}"
-    engine = build_engine(url)
-    create_schema(engine)
-    engine.dispose()
-    return url
+    return empty(tmp_path)
 
 
 @pytest.fixture

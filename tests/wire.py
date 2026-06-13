@@ -1,12 +1,18 @@
-"""One key ring for the whole suite, minted once.
+"""One key ring and one application for the whole suite, both built once.
 
-Deriving a key is meant to be slow. Two hundred and forty thousand rounds is the
-point of it, and it is the reason a key is worth having. What it is not worth
-doing is four of them in the setup of every route test, which is where this
-suite was spending most of a minute.
+Two things in the http tests were being paid for over and over. The first was
+the key ring: minting four keys in the setup of every route test cost most of a
+minute across the suite, and none of those tests cares which four keys they are.
 
-So the ring is built at import and shared. Nothing in the suite mutates it, and
-the two tests that genuinely need a different ring build their own.
+The second was the application. FastAPI does real work when a router is
+included, and building it takes about a fifth of a second, which across a
+hundred and something route and command tests is most of another minute. The
+running copy keeps everything it needs on app.state.settings and every dependency
+reads it off the request, so a test can hand the same application a different
+database by putting different settings there. That is exactly what the factory
+was written for, and it is why nothing in this package reaches for a global.
+
+The two tests that genuinely need a different key ring still build their own.
 """
 
 from datetime import date
@@ -49,6 +55,20 @@ def settings(today: date = TODAY, resort: str = "Ogden Peak") -> Settings:
     return Settings.in_memory(keys=RING, today=lambda: today, resort=resort)
 
 
+APP = build_app(Settings.in_memory(keys=RING))
+
+
 def client_for(built: Settings) -> TestClient:
-    """A client that hands the error body back rather than raising through it."""
+    """A client that hands the error body back rather than raising through it.
+
+    The settings go on the application the same way the factory puts them there.
+    Every dependency reads them off the request, so the database this client
+    talks to is the one the caller just built and nothing leaks between tests.
+    """
+    APP.state.settings = built
+    return TestClient(APP, raise_server_exceptions=False)
+
+
+def fresh_client(built: Settings) -> TestClient:
+    """A client on its own application, for the tests that are about the factory."""
     return TestClient(build_app(built), raise_server_exceptions=False)
