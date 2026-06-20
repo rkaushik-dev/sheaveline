@@ -29,6 +29,7 @@ from sheaveline.ops.stop import StopKind
 from sheaveline.persistence.uow import UnitOfWork
 from sheaveline.plant.identity import LiftCode
 from sheaveline.plant.lift import Lift
+from sheaveline.reports.boardpacket import BoardPacket, FiledIncident, MachineYear
 from sheaveline.reports.morning import MachineLine, Morning
 from sheaveline.reports.season import DayRecord, SeasonSummary
 from sheaveline.ropework.verdict import assess_wear
@@ -191,3 +192,50 @@ def opening_window(work: UnitOfWork, on: date) -> tuple[datetime, datetime]:
     if not starts:
         return (datetime.combine(on, time.min), datetime.combine(on, time.min))
     return (min(starts), max(ends))
+
+
+def machine_year(
+    work: UnitOfWork, lift: Lift, season: Season, summary: SeasonSummary
+) -> MachineYear:
+    """One machine's season, read the way the board asks about it."""
+    reading = assess(work, lift, season.closes)
+    surveys = work.wear_surveys.for_rope(lift.rope)
+    return MachineYear(
+        lift=lift.code,
+        name=lift.name,
+        days_open=summary.days_open(lift.code),
+        scheduled=summary.scheduled(lift.code),
+        chargeable=summary.chargeable(lift.code),
+        availability=summary.availability(lift.code),
+        status=reading.status(),
+        ladder_overdue=len(reading.schedule.overdue(season.closes)),
+        open_defects=len(work.inspections.open_defects(lift.code)),
+        rope_serial=str(lift.rope.serial),
+        rope_verdict=("never walked" if not surveys else assess_wear(surveys[-1]).value),
+    )
+
+
+def board_packet(
+    work: UnitOfWork,
+    season: Season,
+    resort: str,
+    prepared: date,
+    prepared_by: str,
+) -> BoardPacket:
+    """The annual page, gathered off a season that is already over."""
+    summary = season_summary(work, season)
+    machines = [machine_year(work, one, season, summary) for one in work.lifts.all()]
+    incidents = []
+    for lift in work.lifts.codes():
+        for _, incident, filing in work.incidents.numbered_for_lift(lift):
+            if not season.covers(incident.at.date()):
+                continue
+            incidents.append(FiledIncident(incident, filing))
+    return BoardPacket.of(
+        season=season.label,
+        resort=resort,
+        prepared=prepared,
+        prepared_by=prepared_by,
+        machines=machines,
+        incidents=incidents,
+    )

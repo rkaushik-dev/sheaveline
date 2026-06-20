@@ -120,3 +120,62 @@ def test_a_season_that_closes_before_it_opens(runner, database):
 def test_the_rope_file_still_prints_from_its_own_group(runner, database):
     reply = run(runner, database, "rope", "list")
     assert reply.exit_code == 0
+
+
+def test_the_annual_packet_prints_and_says_what_is_outstanding(runner, database):
+    reply = run(
+        runner,
+        database,
+        "report",
+        "packet",
+        "2024-25",
+        "--opens",
+        "2024-12-01",
+        "--closes",
+        "2025-04-15",
+        "--by",
+        "R Skaggs",
+        "--on",
+        "2025-05-12",
+    )
+    assert "ANNUAL PACKET 2024-25" in reply.output
+    assert "outstanding" in reply.output
+    assert max(len(one) for one in reply.output.splitlines()) <= PAGE_WIDTH
+
+
+def test_a_packet_with_something_outstanding_leaves_a_bad_exit_code(runner, database):
+    reply = run(
+        runner,
+        database,
+        "report",
+        "packet",
+        "2024-25",
+        "--opens",
+        "2024-12-01",
+        "--closes",
+        "2025-04-15",
+        "--by",
+        "R Skaggs",
+        "--on",
+        "2025-05-12",
+    )
+    assert reply.exit_code == 1
+    assert "inspections overdue" in reply.output
+
+
+def test_the_packet_names_the_ropes_on_the_machines(runner, database):
+    reply = run(
+        runner,
+        database,
+        "report",
+        "packet",
+        "2024-25",
+        "--opens",
+        "2024-12-01",
+        "--closes",
+        "2025-04-15",
+        "--by",
+        "R Skaggs",
+    )
+    assert "never walked" in reply.output
+    assert "FAT-2019-04412" in reply.output
