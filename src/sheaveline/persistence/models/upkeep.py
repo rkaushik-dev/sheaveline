@@ -21,6 +21,7 @@ from sqlalchemy import (
     CheckConstraint,
     Date,
     ForeignKey,
+    Index,
     Integer,
     String,
     UniqueConstraint,
@@ -70,6 +71,8 @@ class DefectRow(Base):
 
     __table_args__ = (
         CheckConstraint("cleared is null or cleared >= raised", name="cleared_after_raised"),
+        # What is still open is asked on every morning page and once a machine.
+        Index("ix_defects_still_open", "cleared", "raised"),
     )
 
 
@@ -91,4 +94,5 @@ class WorkOrderRow(Base):
     __table_args__ = (
         CheckConstraint("number >= 1", name="orders_from_one"),
         CheckConstraint("closed is null or closed >= raised", name="closed_after_raised"),
+        Index("ix_work_orders_open_by_machine", "lift_code", "closed"),
     )

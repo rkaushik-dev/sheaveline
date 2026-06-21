@@ -21,6 +21,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     UniqueConstraint,
@@ -118,6 +119,9 @@ class StopRow(Base):
     __table_args__ = (
         UniqueConstraint("lift_code", "stopped", name="one_stop_a_moment"),
         CheckConstraint("restarted is null or restarted >= stopped", name="restart_after_stop"),
+        # Asking what is stopped right now is the commonest question on the hill
+        # and it was reading every stop of every season to answer it.
+        Index("ix_stops_still_open", "restarted", "stopped"),
     )
 
 
@@ -137,6 +141,7 @@ class HoldRow(Base):
 
     __table_args__ = (
         CheckConstraint("ended is null or ended >= started", name="hold_ends_after_it_starts"),
+        Index("ix_holds_by_machine", "lift_code", "started"),
     )
 
 

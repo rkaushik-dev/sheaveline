@@ -18,6 +18,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     UniqueConstraint,
@@ -73,4 +74,6 @@ class ObservationRow(Base):
         CheckConstraint(
             "wind_gust is null or wind_gust >= wind_speed", name="gust_above_sustained"
         ),
+        # Everything since a moment, across every station, is what the hold log reads.
+        Index("ix_observations_by_moment", "taken"),
     )

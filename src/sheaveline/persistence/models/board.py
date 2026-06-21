@@ -19,6 +19,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     UniqueConstraint,
@@ -49,6 +50,8 @@ class FilingRow(Base):
     lift: Mapped[LiftRow] = relationship()
     incidents: Mapped[list[IncidentRow]] = relationship(back_populates="filing")
 
+    __table_args__ = (Index("ix_filings_by_machine", "lift_code", "filed"),)
+
 
 class IncidentRow(Base):
     __tablename__ = "incidents"
@@ -71,6 +74,9 @@ class IncidentRow(Base):
     __table_args__ = (
         UniqueConstraint("lift_code", "at", name="one_incident_a_moment"),
         CheckConstraint("people >= 0", name="people_not_negative"),
+        # What has not gone to the board yet is the question the register exists
+        # to answer, and it was reading every incident ever recorded to answer it.
+        Index("ix_incidents_not_yet_filed", "filing_number", "at"),
     )
 
 
