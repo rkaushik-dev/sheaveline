@@ -28,6 +28,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from sheaveline import __version__
 from sheaveline.errors import SheavelineError
+from sheaveline.journal import Journal, Level
 from sheaveline.persistence.base import build_engine, create_schema, table_names
 from sheaveline.persistence.uow import UnitOfWork
 
@@ -45,10 +46,12 @@ class Console:
         engine: Engine,
         now: Callable[[], datetime] | None = None,
         today: Callable[[], date] | None = None,
+        journal: Journal | None = None,
     ) -> None:
         self.engine = engine
         self._now = now
         self._today = today
+        self.journal = journal if journal is not None else Journal.silent()
 
     def now(self) -> datetime:
         """One clock, because a command that reads both wants them to agree."""
@@ -83,13 +86,25 @@ def handles_refusals(command: Callable[..., Result]) -> Callable[..., Result]:
         try:
             return command(*args, **kwargs)
         except SheavelineError as refusal:
+            _journal_of(args).warn(
+                "refused", command=command.__name__, error=type(refusal).__name__
+            )
             click.echo(f"{type(refusal).__name__}: {refusal}", err=True)
             raise SystemExit(1) from refusal
         except SQLAlchemyError as broken:
+            _journal_of(args).error(
+                "database", command=command.__name__, error=type(broken).__name__
+            )
             click.echo(f"the database will not answer: {_first_line(broken)}", err=True)
             raise SystemExit(2) from broken
 
     return run
+
+
+def _journal_of(args: tuple[Any, ...]) -> Journal:
+    """The console is the first argument of every command, or nothing is."""
+    first = args[0] if args else None
+    return first.journal if isinstance(first, Console) else Journal.silent()
 
 
 def _first_line(error: Exception) -> str:
@@ -105,11 +120,27 @@ def _first_line(error: Exception) -> str:
     show_default=True,
     help="Where the records live.",
 )
+@click.option(
+    "--journal",
+    "level",
+    type=click.Choice([one.name.lower() for one in Level]),
+    default="off",
+    show_default=True,
+    help="What the software writes about itself, on standard error.",
+)
 @click.version_option(version=__version__, prog_name="sheaveline")
 @click.pass_context
-def cli(context: click.Context, database: str) -> None:
-    """Lift department records for a passenger ropeway operation."""
-    context.obj = Console(build_engine(database))
+def cli(context: click.Context, database: str, level: str) -> None:
+    """Lift department records for a passenger ropeway operation.
+
+    The journal is off by default. These commands print reports to standard
+    output and a stray line in the middle of an eighty column page is a page
+    nobody can read, so saying anything about ourselves has to be asked for.
+    """
+    wanted = Level.named(level)
+    book = Journal.silent() if wanted is Level.OFF else Journal.to_stderr(wanted)
+    context.obj = Console(build_engine(database), journal=book)
+    book.debug("started", database=database)
 
 
 @cli.command()

@@ -14,6 +14,12 @@ def runner():
 
 
 @pytest.fixture
+def loud():
+    """A runner that keeps the two streams apart, which the journal tests need."""
+    return CliRunner(mix_stderr=False)
+
+
+@pytest.fixture
 def database(tmp_path):
     return f"sqlite+pysqlite:///{tmp_path / 'office.sqlite3'}"
 
@@ -211,3 +217,43 @@ def test_the_driver_sentence_is_one_line(runner):
 
     error = OperationalError("select 1", {}, Exception("unable to open database file"))
     assert "\n" not in _first_line(error)
+
+
+def test_the_journal_is_off_unless_it_is_asked_for(loud, database):
+    reply = loud.invoke(cli, ["--database", database, "tables"])
+    assert reply.exit_code == 0
+    assert reply.stderr == ""
+
+
+def test_asking_for_the_journal_writes_to_standard_error(loud, database):
+    reply = loud.invoke(cli, ["--database", database, "--journal", "debug", "tables"])
+    assert reply.exit_code == 0
+    assert "started" in reply.stderr
+    assert "day_logs" in reply.output
+
+
+def test_a_refusal_goes_in_the_journal_as_well_as_on_the_page(loud, database):
+    loud.invoke(cli, ["--database", database, "setup"])
+    reply = loud.invoke(cli, ["--database", database, "--journal", "info", "day", "show", "JP"])
+    assert reply.exit_code == 1
+    assert "refused" in reply.stderr
+    assert "error=StorageError" in reply.stderr
+
+
+def test_a_database_that_will_not_answer_goes_in_the_journal_too(loud, database):
+    reply = loud.invoke(cli, ["--database", database, "--journal", "info", "day", "show", "JP"])
+    assert reply.exit_code == 2
+    assert "error=OperationalError" in reply.stderr
+    assert "the database will not answer" in reply.stderr
+
+
+def test_a_level_nobody_has(loud, database):
+    reply = loud.invoke(cli, ["--database", database, "--journal", "chatty", "tables"])
+    assert reply.exit_code == 2
+    assert "'chatty' is not one of" in reply.stderr
+
+
+def test_the_journal_never_lands_in_the_middle_of_a_report(loud, database):
+    reply = loud.invoke(cli, ["--database", database, "--journal", "debug", "tables"])
+    assert all(" info " not in one for one in reply.output.splitlines())
+    assert all(" debug " not in one for one in reply.output.splitlines())

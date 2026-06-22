@@ -15,7 +15,9 @@ from fastapi import FastAPI
 from sqlalchemy import Engine
 
 from sheaveline.api.errors import install_handlers
+from sheaveline.api.middleware import install_journal
 from sheaveline.api.security import KeyRing
+from sheaveline.journal import Journal
 from sheaveline.persistence.base import build_engine, create_schema
 from sheaveline.persistence.uow import UnitOfWork
 
@@ -33,11 +35,13 @@ class Settings:
         resort: str = "Ogden Peak",
         keys: KeyRing | None = None,
         today: Callable[[], date] | None = None,
+        journal: Journal | None = None,
     ) -> None:
         self.engine = engine
         self.resort = resort
         self.keys = keys if keys is not None else KeyRing.of()
         self._today = today or date.today
+        self.journal = journal if journal is not None else Journal.silent()
 
     def today(self) -> date:
         """The day the running copy thinks it is, so a test can say otherwise."""
@@ -49,16 +53,18 @@ class Settings:
         resort: str = "Ogden Peak",
         keys: KeyRing | None = None,
         today: Callable[[], date] | None = None,
+        journal: Journal | None = None,
     ) -> Settings:
         engine = build_engine()
         create_schema(engine)
-        return cls(engine, resort, keys, today)
+        return cls(engine, resort, keys, today, journal)
 
 
 def build_app(settings: Settings) -> FastAPI:
     app = FastAPI(title=TITLE, version=VERSION, summary=SUMMARY)
     app.state.settings = settings
     install_handlers(app)
+    install_journal(app, settings.journal)
 
     from sheaveline.api.routes import (
         board,
