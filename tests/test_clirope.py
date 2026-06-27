@@ -234,3 +234,76 @@ def test_the_group_lists_its_commands(runner, database):
     reply = run(runner, database, "rope", "--help")
     for name in ("list", "file", "walk", "walks"):
         assert name in reply.output
+
+
+def walked(runner, database, taken, inches, serial=SERIAL):
+    return run(
+        runner,
+        database,
+        "rope",
+        "walk",
+        serial,
+        "--taken",
+        taken,
+        "--inspector",
+        "R Halvorsen",
+        "--reading",
+        f"1200 ft:{inches} in:{inches} in",
+    )
+
+
+def test_a_rope_with_one_walk_cannot_be_projected(runner, database):
+    walked(runner, database, "2024-01-15", "1.354")
+    reply = run(runner, database, "rope", "forecast", SERIAL, "--on", "2025-09-01")
+    assert reply.exit_code == 1
+    assert "needs 2 walks" in reply.output
+
+
+def test_two_walks_give_the_date_the_rope_comes_off(runner, database):
+    walked(runner, database, "2023-01-15", "1.378")
+    walked(runner, database, "2025-01-15", "1.330")
+    reply = run(runner, database, "rope", "forecast", SERIAL, "--on", "2025-09-01")
+    assert reply.exit_code == 0
+    assert "2027-01-16" in reply.output
+    assert "two points" in reply.output
+
+
+def test_a_rope_that_has_not_worn_says_so_rather_than_guessing(runner, database):
+    walked(runner, database, "2024-01-15", "1.378")
+    walked(runner, database, "2025-01-15", "1.378")
+    reply = run(runner, database, "rope", "forecast", SERIAL, "--on", "2025-09-01")
+    assert reply.exit_code == 0
+    assert "not wearing" in reply.output
+
+
+def test_with_no_serial_it_prints_only_what_wants_ordering(runner, database):
+    walked(runner, database, "2023-01-15", "1.378")
+    walked(runner, database, "2025-01-15", "1.330")
+    quiet = run(runner, database, "rope", "forecast", "--on", "2025-09-01")
+    assert "nothing on the hill wants ordering yet" in quiet.output
+
+
+def test_a_rope_wearing_fast_is_named_as_wanting_ordering(runner, database):
+    walked(runner, database, "2025-01-15", "1.340")
+    walked(runner, database, "2025-06-15", "1.300")
+    reply = run(runner, database, "rope", "forecast", "--on", "2025-09-01")
+    assert reply.exit_code == 0
+    assert "should already be on order" in reply.output
+    assert SERIAL in reply.output
+
+
+def test_a_shorter_lead_time_moves_the_order_date(runner, database):
+    walked(runner, database, "2023-01-15", "1.378")
+    walked(runner, database, "2025-01-15", "1.330")
+    args = ("rope", "forecast", SERIAL, "--on", "2025-09-01")
+    slow = run(runner, database, *args, "--lead-time", "300")
+    quick = run(runner, database, *args, "--lead-time", "30")
+    assert slow.output != quick.output
+    assert "2027-01-16" in slow.output
+    assert "2027-01-16" in quick.output
+
+
+def test_a_rope_nobody_has(runner, database):
+    reply = run(runner, database, "rope", "forecast", "ZZZ-2019-0404")
+    assert reply.exit_code == 1
+    assert "there is no rope" in reply.output

@@ -9,7 +9,7 @@ how a reading ends up in the wrong column.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 
 import click
 
@@ -21,6 +21,7 @@ from sheaveline.plant.identity import RopeSerial
 from sheaveline.plant.rope import HaulRope
 from sheaveline.reports.forms import Align, Column, Table
 from sheaveline.reports.ropefile import RopeFilePage
+from sheaveline.ropework.trend import LEAD_TIME_DAYS, forecast, orderable
 from sheaveline.ropework.verdict import assess_wear
 from sheaveline.ropework.wear import DiameterReading, WearSurvey
 
@@ -172,3 +173,71 @@ def list_walks(console: Console, serial: str) -> None:
         rows,
     )
     console.page(table.lines())
+
+
+def _day(wanted: date | None, missing: str = "") -> str:
+    return missing if wanted is None else wanted.isoformat()
+
+
+@rope.command("forecast")
+@click.argument("serial", required=False)
+@click.option(
+    "--lead-time",
+    default=LEAD_TIME_DAYS,
+    show_default=True,
+    help="Weeks the mill takes, in days.",
+)
+@click.option("--on", "on", type=click.DateTime(["%Y-%m-%d"]), default=None)
+@click.pass_obj
+@handles_refusals
+def wear_forecast(
+    console: Console, serial: str | None, lead_time: int, on: datetime | None
+) -> None:
+    """When a rope reaches the condemning diameter, and when to order the next.
+
+    With no serial it walks every rope on file and prints only the ones whose
+    replacement should already be on order, which is the version the office runs
+    in September.
+    """
+    when = on.date() if on else console.today()
+    with console.work() as work:
+        if serial is not None:
+            wanted = work.ropes.get(RopeSerial.parse(serial))
+            found = [forecast(wanted, work.wear_surveys.for_rope(wanted), when, lead_time)]
+        else:
+            found = list(
+                orderable(
+                    [(one, work.wear_surveys.for_rope(one)) for one in work.ropes.all()],
+                    when,
+                    lead_time,
+                )
+            )
+    if not found:
+        console.say("nothing on the hill wants ordering yet")
+        return
+    console.page(
+        Table.of(
+            [
+                Column("serial", 16),
+                Column("now", 8, Align.RIGHT),
+                Column("left", 8, Align.RIGHT),
+                Column("comes off", 12),
+                Column("order by", 12),
+                Column("read from", 12),
+            ],
+            [
+                (
+                    str(one.trend.rope.serial),
+                    one.trend.last().smallest.format_inches(3),
+                    one.trend.left().format_inches(3),
+                    _day(one.comes_off(), "not wearing"),
+                    _day(one.order_by()),
+                    one.confidence(),
+                )
+                for one in found
+            ],
+        ).lines()
+    )
+    for one in found:
+        if one.is_overdue_to_order():
+            console.say(f"{one.trend.rope.serial} should already be on order")
