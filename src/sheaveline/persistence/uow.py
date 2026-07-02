@@ -23,6 +23,7 @@ from sheaveline.persistence.repositories import (
     IncidentRepository,
     InspectionRepository,
     LiftRepository,
+    PersonnelRepository,
     RopeRepository,
     WearSurveyRepository,
     WeatherRepository,
@@ -123,3 +124,7 @@ class UnitOfWork:
     @property
     def day_logs(self) -> DayLogRepository:
         return DayLogRepository(self._require())
+
+    @property
+    def personnel(self) -> PersonnelRepository:
+        return PersonnelRepository(self._require())

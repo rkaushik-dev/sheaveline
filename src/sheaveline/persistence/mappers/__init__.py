@@ -11,6 +11,14 @@ from sheaveline.persistence.mappers.ops import (
     stop_log_from_rows,
     stop_to_row,
 )
+from sheaveline.persistence.mappers.people import (
+    assignment_from_row,
+    assignment_to_row,
+    certificate_from_row,
+    certificate_to_row,
+    personnel_from_rows,
+    roster_from_rows,
+)
 from sheaveline.persistence.mappers.plant import (
     lift_from_row,
     lift_to_row,
@@ -31,6 +39,12 @@ from sheaveline.persistence.mappers.ropework import (
 )
 
 __all__ = [
+    "assignment_from_row",
+    "assignment_to_row",
+    "certificate_from_row",
+    "certificate_to_row",
+    "personnel_from_rows",
+    "roster_from_rows",
     "day_log_from_row",
     "day_log_to_row",
     "hold_from_row",

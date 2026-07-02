@@ -27,7 +27,9 @@ from sheaveline.measures.length import Length
 from sheaveline.measures.wind import Wind
 from sheaveline.ops.logbook import DayLog
 from sheaveline.ops.meters import MeterHistory, MeterReading
+from sheaveline.ops.shift import Assignment, Roster
 from sheaveline.ops.stop import StopEvent, StopLog
+from sheaveline.people.certification import Certificate, Endorsement, PersonnelFile
 from sheaveline.persistence.base import StorageError
 from sheaveline.persistence.mappers.ops import (
     day_log_from_row,
@@ -40,6 +42,14 @@ from sheaveline.persistence.mappers.ops import (
     stop_log_from_rows,
     stop_to_row,
 )
+from sheaveline.persistence.mappers.people import (
+    assignment_from_row,
+    assignment_to_row,
+    certificate_from_row,
+    certificate_to_row,
+    personnel_from_rows,
+    roster_from_rows,
+)
 from sheaveline.persistence.mappers.plant import (
     lift_from_row,
     lift_to_row,
@@ -47,8 +57,18 @@ from sheaveline.persistence.mappers.plant import (
     rope_to_row,
 )
 from sheaveline.persistence.mappers.ropework import wear_from_row, wear_to_row
-from sheaveline.persistence.models.board import FilingRow, IncidentRow
-from sheaveline.persistence.models.ops import DayLogRow, HoldRow, MeterReadingRow, StopRow
+from sheaveline.persistence.models.board import (
+    CertificateRow,
+    FilingRow,
+    IncidentRow,
+)
+from sheaveline.persistence.models.ops import (
+    AssignmentRow,
+    DayLogRow,
+    HoldRow,
+    MeterReadingRow,
+    StopRow,
+)
 from sheaveline.persistence.models.plant import HaulRopeRow, LiftRow
 from sheaveline.persistence.models.ropework import WearSurveyRow
 from sheaveline.persistence.models.upkeep import (
@@ -62,6 +82,7 @@ from sheaveline.plant.identity import FilingNumber, LiftCode, RopeSerial
 from sheaveline.plant.lift import Lift
 from sheaveline.plant.rope import HaulRope
 from sheaveline.ropework.wear import WearSurvey
+from sheaveline.schedule.hours import OperatingWindow
 from sheaveline.upkeep.record import Defect, InspectionRecord
 from sheaveline.upkeep.workorder import Priority, WorkOrder
 from sheaveline.weather.holdlog import HoldRecord, HoldRegister
@@ -744,3 +765,91 @@ class DayLogRepository(Repository):
         if not rows:
             return None
         return MeterHistory.of(code, [meter_from_row(one) for one in rows])
+
+
+class PersonnelRepository(Repository):
+    """The cards and the shifts, which are the same question asked two ways."""
+
+    def __init__(self, session: Session) -> None:
+        super().__init__(session)
+        self.lifts = LiftRepository(session)
+
+    def issue(self, card: Certificate) -> None:
+        clash = self.session.scalar(
+            select(CertificateRow).where(
+                CertificateRow.person == card.person,
+                CertificateRow.endorsement == card.endorsement,
+                CertificateRow.issued == card.issued,
+            )
+        )
+        if clash is not None:
+            raise StorageError(
+                f"{card.person} already has a {card.endorsement.value} card "
+                f"issued {card.issued.isoformat()}"
+            )
+        self.session.add(certificate_to_row(card))
+        self.session.flush()
+
+    def file(self) -> PersonnelFile:
+        return personnel_from_rows(
+            self.many(select(CertificateRow).order_by(CertificateRow.person))
+        )
+
+    def for_person(self, person: str) -> list[Certificate]:
+        rows = self.many(
+            select(CertificateRow)
+            .where(CertificateRow.person == person)
+            .order_by(CertificateRow.issued)
+        )
+        return [certificate_from_row(one) for one in rows]
+
+    def people(self) -> list[str]:
+        return sorted({one.person for one in self.many(select(CertificateRow))})
+
+    def renew(self, person: str, endorsement: Endorsement, expires: date, by: str) -> Certificate:
+        row = self.one(
+            select(CertificateRow)
+            .where(
+                CertificateRow.person == person,
+                CertificateRow.endorsement == endorsement,
+            )
+            .order_by(CertificateRow.issued.desc()),
+            f"{person} has no {endorsement.value} card to renew",
+        )
+        renewed = certificate_from_row(row).renewed_to(expires, by)
+        self.issue(renewed)
+        return renewed
+
+    def assign(self, lift: LiftCode, day: date, shift: Assignment) -> None:
+        clash = self.session.scalar(
+            select(AssignmentRow).where(
+                AssignmentRow.lift_code == lift,
+                AssignmentRow.day == day,
+                AssignmentRow.person == shift.person,
+                AssignmentRow.starts == shift.starts,
+            )
+        )
+        if clash is not None:
+            raise StorageError(f"{shift.person} is already on {lift} at {shift.starts}")
+        self.session.add(assignment_to_row(lift, day, shift))
+        self.session.flush()
+
+    def shifts(self, lift: LiftCode, day: date) -> list[AssignmentRow]:
+        return self.many(
+            select(AssignmentRow)
+            .where(AssignmentRow.lift_code == lift, AssignmentRow.day == day)
+            .order_by(AssignmentRow.starts)
+        )
+
+    def roster(self, lift: LiftCode, day: date, window: OperatingWindow) -> Roster:
+        machine = self.lifts.get(lift)
+        return roster_from_rows(lift, machine.lift_class, day, window, self.shifts(lift, day))
+
+    def working(self, person: str, day: date) -> list[tuple[LiftCode, Assignment]]:
+        """Everywhere one person is down to be, which is how a clash is found."""
+        rows = self.many(
+            select(AssignmentRow)
+            .where(AssignmentRow.person == person, AssignmentRow.day == day)
+            .order_by(AssignmentRow.starts)
+        )
+        return [(one.lift_code, assignment_from_row(one)) for one in rows]
