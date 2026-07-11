@@ -17,6 +17,7 @@ from decimal import Decimal
 
 import click
 
+from sheaveline.cli.common import day_of, day_option
 from sheaveline.cli.main import Console, cli, handles_refusals
 from sheaveline.errors import ParseError
 from sheaveline.persistence.base import StorageError
@@ -26,27 +27,21 @@ from sheaveline.reports.gather import assess
 from sheaveline.upkeep.record import Defect, DefectLevel, InspectionRecord
 from sheaveline.upkeep.workorder import Priority, WorkOrder
 
-DAY_FORMAT = "%Y-%m-%d"
-
 
 @cli.group()
 def upkeep() -> None:
     """The inspection ladder, its findings and the work that comes off it."""
 
 
-def _day(console: Console, given: datetime | None) -> date:
-    return given.date() if given else console.today()
-
-
 @upkeep.command("due")
 @click.argument("code")
 @click.option("--within", default=30, show_default=True, help="Days ahead to look.")
-@click.option("--on", "on", type=click.DateTime([DAY_FORMAT]), default=None)
+@day_option()
 @click.pass_obj
 @handles_refusals
 def due(console: Console, code: str, within: int, on: datetime | None) -> None:
     """What the ladder wants on one machine, soonest first."""
-    when = _day(console, on)
+    when = day_of(console, on)
     with console.work() as work:
         lift = work.lifts.get(LiftCode.parse(code))
         reading = assess(work, lift, when)
@@ -102,7 +97,7 @@ def parse_defect(text: str, raised: date) -> Defect:
 @click.option("--hours", default=None, help="The hour meter at the time.")
 @click.option("--cycles", default=None, type=int, help="The cycle counter at the time.")
 @click.option("--defect", multiple=True, metavar="WHERE:LEVEL:WHAT")
-@click.option("--on", "on", type=click.DateTime([DAY_FORMAT]), default=None)
+@day_option()
 @click.pass_obj
 @handles_refusals
 def record_job(
@@ -116,7 +111,7 @@ def record_job(
     on: datetime | None,
 ) -> None:
     """Sign off one job on the ladder and write down what it turned up."""
-    when = _day(console, on)
+    when = day_of(console, on)
     found = [parse_defect(one, when) for one in defect]
     record = InspectionRecord.of(
         lift=LiftCode.parse(code),
@@ -196,14 +191,14 @@ def raise_order(console: Console, code: str, where: str, by: str) -> None:
 @upkeep.command("board")
 @click.option("--lift", "code", default=None, help="Just this machine.")
 @click.option("--priority", type=click.Choice([one.name.lower() for one in Priority]), default=None)
-@click.option("--on", "on", type=click.DateTime([DAY_FORMAT]), default=None)
+@day_option()
 @click.pass_obj
 @handles_refusals
 def order_board(
     console: Console, code: str | None, priority: str | None, on: datetime | None
 ) -> None:
     """The work orders that are still open, worst first."""
-    when = _day(console, on)
+    when = day_of(console, on)
     with console.work() as work:
         if priority is not None:
             orders = work.work_orders.of_priority(Priority[priority.upper()])
@@ -242,12 +237,12 @@ def order_board(
 @upkeep.command("close")
 @click.argument("number", type=int)
 @click.option("--by", required=True, help="Who finished it.")
-@click.option("--on", "on", type=click.DateTime([DAY_FORMAT]), default=None)
+@day_option()
 @click.pass_obj
 @handles_refusals
 def close_order(console: Console, number: int, by: str, on: datetime | None) -> None:
     """Close a work order."""
-    when = _day(console, on)
+    when = day_of(console, on)
     with console.work() as work:
         closed = work.work_orders.close(number, when, by)
         work.commit()

@@ -11,20 +11,14 @@ import click
 
 from sheaveline.capacity.spacing import LineSpacing
 from sheaveline.capacity.uphill import UphillCapacity
+from sheaveline.cli.common import machine
 from sheaveline.cli.main import Console, cli, handles_refusals
-from sheaveline.persistence.uow import UnitOfWork
-from sheaveline.plant.identity import LiftCode
-from sheaveline.plant.lift import Lift
 from sheaveline.reports.forms import Align, Column, Report, Table
 
 
 @cli.group()
 def lift() -> None:
     """The machines on the hill."""
-
-
-def _load(work: UnitOfWork, code: str) -> Lift:
-    return work.lifts.get(LiftCode.parse(code))
 
 
 @lift.command("list")
@@ -63,26 +57,26 @@ def list_lifts(console: Console) -> None:
 def show_lift(console: Console, code: str) -> None:
     """Everything about one machine, on one page."""
     with console.work() as work:
-        machine = _load(work, code)
-        line = LineSpacing.of(machine)
-        figures = UphillCapacity(line, machine.carriers.kind.seats)
+        found = machine(work, code)
+        line = LineSpacing.of(found)
+        figures = UphillCapacity(line, found.carriers.kind.seats)
         page = Report()
-        page.heading(f"{machine.code} {machine.name}")
-        page.field("class", machine.lift_class.value)
-        page.field("commissioned", machine.commissioned.isoformat())
-        page.field("age", f"{machine.age_in_years(console.today())} years")
-        page.field("bearing", str(machine.bearing))
-        page.field("design speed", machine.design_speed.format_fpm())
-        page.field("horizontal length", f"{machine.horizontal_length().feet:.0f} ft")
-        page.field("vertical rise", f"{machine.vertical_rise().feet:.0f} ft")
-        page.field("slope length", f"{machine.slope_length().feet:.0f} ft")
-        page.field("ride time", machine.ride_time().format_clock())
-        page.field("carriers", machine.carriers_on_line())
-        page.field("seats a carrier", machine.carriers.kind.seats)
+        page.heading(f"{found.code} {found.name}")
+        page.field("class", found.lift_class.value)
+        page.field("commissioned", found.commissioned.isoformat())
+        page.field("age", f"{found.age_in_years(console.today())} years")
+        page.field("bearing", str(found.bearing))
+        page.field("design speed", found.design_speed.format_fpm())
+        page.field("horizontal length", f"{found.horizontal_length().feet:.0f} ft")
+        page.field("vertical rise", f"{found.vertical_rise().feet:.0f} ft")
+        page.field("slope length", f"{found.slope_length().feet:.0f} ft")
+        page.field("ride time", found.ride_time().format_clock())
+        page.field("carriers", found.carriers_on_line())
+        page.field("seats a carrier", found.carriers.kind.seats)
         page.field("carrier interval", line.interval().format_clock())
         page.field("people an hour", f"{figures.persons_per_hour():,}")
-        page.field("rope", str(machine.rope.serial))
-        page.field("rope length agrees", "yes" if machine.rope_length_agrees() else "no")
+        page.field("rope", str(found.rope.serial))
+        page.field("rope length agrees", "yes" if found.rope_length_agrees() else "no")
     console.page(page.lines())
 
 
@@ -93,7 +87,7 @@ def show_lift(console: Console, code: str) -> None:
 def show_towers(console: Console, code: str) -> None:
     """The tower schedule."""
     with console.work() as work:
-        machine = _load(work, code)
+        found = machine(work, code)
         rows = [
             (
                 str(one.ref),
@@ -104,7 +98,7 @@ def show_towers(console: Console, code: str) -> None:
                 one.uphill.kind.value,
                 one.sheave_count(),
             )
-            for one in machine.towers
+            for one in found.towers
         ]
     table = Table.of(
         [
@@ -128,8 +122,8 @@ def show_towers(console: Console, code: str) -> None:
 def show_spans(console: Console, code: str) -> None:
     """The line cut into spans, longest and steepest marked."""
     with console.work() as work:
-        machine = _load(work, code)
-        spans = machine.spans()
+        found = machine(work, code)
+        spans = found.spans()
         longest = spans.longest().index
         steepest = spans.steepest().index
         rows = []
@@ -171,9 +165,9 @@ def show_spans(console: Console, code: str) -> None:
 def withdraw_lift(console: Console, code: str, yes: bool) -> None:
     """Take a machine off the register. It takes its towers with it."""
     with console.work() as work:
-        machine = _load(work, code)
+        found = machine(work, code)
         if not yes:
-            click.confirm(f"take {machine.code} {machine.name} off the register?", abort=True)
-        work.lifts.remove(machine.code)
+            click.confirm(f"take {found.code} {found.name} off the register?", abort=True)
+        work.lifts.remove(found.code)
         work.commit()
     console.say(f"{code.upper()} withdrawn")

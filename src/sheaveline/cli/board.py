@@ -18,22 +18,16 @@ import click
 
 from sheaveline.board.filing import FilingKind
 from sheaveline.board.incident import Incident, IncidentKind, InjuryLevel
+from sheaveline.cli.common import moment_of, moment_option
 from sheaveline.cli.main import Console, cli, handles_refusals
 from sheaveline.persistence.base import StorageError
 from sheaveline.plant.identity import LiftCode
 from sheaveline.reports.forms import Align, Column, Table
 
-DAY_FORMAT = "%Y-%m-%d"
-MOMENT_FORMAT = "%Y-%m-%d %H:%M"
-
 
 @cli.group()
 def board() -> None:
     """Reportable incidents and what has been filed about them."""
-
-
-def _moment(given: datetime | None, console: Console) -> datetime:
-    return given if given is not None else console.now()
 
 
 @board.command("record")
@@ -52,7 +46,7 @@ def _moment(given: datetime | None, console: Console) -> datetime:
 )
 @click.option("--people", default=1, show_default=True, help="How many were involved.")
 @click.option("--by", required=True, help="Who is reporting it.")
-@click.option("--at", "at", type=click.DateTime([MOMENT_FORMAT, DAY_FORMAT]), default=None)
+@moment_option()
 @click.pass_obj
 @handles_refusals
 def record_incident(
@@ -68,7 +62,7 @@ def record_incident(
     """Write an incident into the register and print when it has to be filed."""
     incident = Incident(
         lift=LiftCode.parse(code),
-        at=_moment(at, console),
+        at=moment_of(console, at),
         kind=IncidentKind[kind.upper()],
         injury=InjuryLevel[injury.upper()],
         people=people,
@@ -95,14 +89,14 @@ def record_incident(
     required=True,
 )
 @click.option("--by", required=True, help="Who is filing it.")
-@click.option("--at", "at", type=click.DateTime([MOMENT_FORMAT, DAY_FORMAT]), default=None)
+@moment_option()
 @click.pass_obj
 @handles_refusals
 def file_incident(
     console: Console, incident_id: int, kind: str, by: str, at: datetime | None
 ) -> None:
     """File one incident with the board and take the next number in the series."""
-    when = _moment(at, console)
+    when = moment_of(console, at)
     with console.work() as work:
         incident, _ = work.incidents.get(incident_id)
         filing = work.incidents.file(incident_id, FilingKind[kind.upper()], when, by)
@@ -115,12 +109,12 @@ def file_incident(
 
 
 @board.command("unfiled")
-@click.option("--at", "at", type=click.DateTime([MOMENT_FORMAT, DAY_FORMAT]), default=None)
+@moment_option()
 @click.pass_obj
 @handles_refusals
 def unfiled(console: Console, at: datetime | None) -> None:
     """Everything on the register that has not gone to the board yet, worst first."""
-    now = _moment(at, console)
+    now = moment_of(console, at)
     with console.work() as work:
         waiting = work.incidents.numbered_unfiled()
     if not waiting:

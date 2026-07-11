@@ -11,10 +11,11 @@ today but what they held on the day of the incident.
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 
 import click
 
+from sheaveline.cli.common import DAY_FORMAT, day_of, day_option
 from sheaveline.cli.main import Console, cli, handles_refusals
 from sheaveline.ops.shift import Assignment, Post
 from sheaveline.people.assignment import RosterCheck
@@ -24,17 +25,12 @@ from sheaveline.plant.identity import LiftCode
 from sheaveline.reports.forms import Align, Column, Table
 from sheaveline.schedule.hours import OperatingWindow, TimeOfDay
 
-DAY_FORMAT = "%Y-%m-%d"
 WARN_WITHIN_DAYS = 45
 
 
 @cli.group()
 def crew() -> None:
     """Cards, shifts and whether the posts can be filled."""
-
-
-def _day(console: Console, given: datetime | None) -> date:
-    return given.date() if given else console.today()
 
 
 def _classes(given: tuple[str, ...]) -> frozenset[LiftClass]:
@@ -102,12 +98,12 @@ def renew_card(console: Console, person: str, endorsement: str, expires: datetim
 @crew.command("cards")
 @click.option("--person", default=None, help="Just this one.")
 @click.option("--expiring", default=WARN_WITHIN_DAYS, show_default=True, help="Days ahead.")
-@click.option("--on", "on", type=click.DateTime([DAY_FORMAT]), default=None)
+@day_option()
 @click.pass_obj
 @handles_refusals
 def list_cards(console: Console, person: str | None, expiring: int, on: datetime | None) -> None:
     """Who is carded for what, and what runs out soon."""
-    when = _day(console, on)
+    when = day_of(console, on)
     with console.work() as work:
         held = work.personnel.file()
         cards = work.personnel.for_person(person) if person else list(held.certificates)
@@ -146,7 +142,7 @@ def list_cards(console: Console, person: str | None, expiring: int, on: datetime
 @click.argument("post", type=click.Choice([one.name.lower() for one in Post]))
 @click.option("--starts", default="08:30", show_default=True)
 @click.option("--ends", default="16:45", show_default=True)
-@click.option("--on", "on", type=click.DateTime([DAY_FORMAT]), default=None)
+@day_option()
 @click.pass_obj
 @handles_refusals
 def assign_shift(
@@ -159,7 +155,7 @@ def assign_shift(
     on: datetime | None,
 ) -> None:
     """Put somebody on a post for the day."""
-    when = _day(console, on)
+    when = day_of(console, on)
     lift = LiftCode.parse(code)
     shift = Assignment(
         person=person,
@@ -185,7 +181,7 @@ def assign_shift(
 @click.option("--first-load", default="09:00", show_default=True)
 @click.option("--last-load", default="16:00", show_default=True)
 @click.option("--sweep-by", default="16:30", show_default=True)
-@click.option("--on", "on", type=click.DateTime([DAY_FORMAT]), default=None)
+@day_option()
 @click.pass_obj
 @handles_refusals
 def staffing_gap(
@@ -201,7 +197,7 @@ def staffing_gap(
     With no machine it walks the whole register, which is the version the
     supervisor runs on Thursday for the weekend.
     """
-    when = _day(console, on)
+    when = day_of(console, on)
     window = OperatingWindow.parse(first_load, last_load, sweep_by)
     short = 0
     with console.work() as work:

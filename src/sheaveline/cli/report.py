@@ -14,12 +14,11 @@ from datetime import datetime
 
 import click
 
+from sheaveline.cli.common import DAY_FORMAT, day_option
 from sheaveline.cli.main import Console, cli, handles_refusals
 from sheaveline.measures.load import Load
 from sheaveline.reports.gather import board_packet, morning, season_summary
 from sheaveline.schedule.season import Season
-
-DAY_FORMAT = "%Y-%m-%d"
 
 
 @cli.group()
@@ -28,7 +27,7 @@ def report() -> None:
 
 
 @report.command("morning")
-@click.option("--on", "on", type=click.DateTime([DAY_FORMAT]), default=None)
+@day_option()
 @click.option("--resort", default="Ogden Peak", show_default=True)
 @click.option("--snow", default="", help="What the patrol reported overnight.")
 @click.option(
@@ -78,7 +77,7 @@ def season_page(console: Console, label: str, opens: datetime, closes: datetime)
 @click.option("--closes", type=click.DateTime([DAY_FORMAT]), required=True)
 @click.option("--resort", default="Ogden Peak", show_default=True)
 @click.option("--by", required=True, help="Who is signing it.")
-@click.option("--on", "on", type=click.DateTime([DAY_FORMAT]), default=None)
+@day_option()
 @click.pass_obj
 @handles_refusals
 def board_page(

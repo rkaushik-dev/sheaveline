@@ -13,12 +13,11 @@ from datetime import date, datetime
 
 import click
 
+from sheaveline.cli.common import DAY_FORMAT, day_option, haul_rope, printed
 from sheaveline.cli.main import Console, cli, handles_refusals
 from sheaveline.errors import ParseError
 from sheaveline.measures.length import Length
-from sheaveline.persistence.uow import UnitOfWork
 from sheaveline.plant.identity import RopeSerial
-from sheaveline.plant.rope import HaulRope
 from sheaveline.reports.forms import Align, Column, Table
 from sheaveline.reports.ropefile import RopeFilePage
 from sheaveline.ropework.trend import LEAD_TIME_DAYS, forecast, orderable
@@ -29,10 +28,6 @@ from sheaveline.ropework.wear import DiameterReading, WearSurvey
 @cli.group()
 def rope() -> None:
     """The haul ropes and what has been done to them."""
-
-
-def _load(work: UnitOfWork, serial: str) -> HaulRope:
-    return work.ropes.get(RopeSerial.parse(serial))
 
 
 def parse_reading(text: str) -> DiameterReading:
@@ -88,7 +83,7 @@ def list_ropes(console: Console, spares: bool) -> None:
 def print_file(console: Console, serial: str) -> None:
     """The rope file, printed the way it goes in the folder."""
     with console.work() as work:
-        held = _load(work, serial)
+        held = haul_rope(work, serial)
         machine = "in the shop"
         for one in work.lifts.all():
             if one.rope.serial == held.serial:
@@ -104,7 +99,7 @@ def print_file(console: Console, serial: str) -> None:
 
 @rope.command("walk")
 @click.argument("serial")
-@click.option("--taken", type=click.DateTime(["%Y-%m-%d"]), required=True)
+@click.option("--taken", type=click.DateTime([DAY_FORMAT]), required=True)
 @click.option("--inspector", required=True)
 @click.option(
     "--reading",
@@ -125,7 +120,7 @@ def walk_rope(
 ) -> None:
     """Record a caliper walk and print what it says about the rope."""
     with console.work() as work:
-        held = _load(work, serial)
+        held = haul_rope(work, serial)
         survey = WearSurvey.of(
             rope=held,
             taken=taken.date() if hasattr(taken, "date") else taken,
@@ -151,7 +146,7 @@ def walk_rope(
 def list_walks(console: Console, serial: str) -> None:
     """Every caliper walk on one rope."""
     with console.work() as work:
-        held = _load(work, serial)
+        held = haul_rope(work, serial)
         rows = [
             (
                 one.taken.isoformat(),
@@ -175,10 +170,6 @@ def list_walks(console: Console, serial: str) -> None:
     console.page(table.lines())
 
 
-def _day(wanted: date | None, missing: str = "") -> str:
-    return missing if wanted is None else wanted.isoformat()
-
-
 @rope.command("forecast")
 @click.argument("serial", required=False)
 @click.option(
@@ -187,7 +178,7 @@ def _day(wanted: date | None, missing: str = "") -> str:
     show_default=True,
     help="Weeks the mill takes, in days.",
 )
-@click.option("--on", "on", type=click.DateTime(["%Y-%m-%d"]), default=None)
+@day_option()
 @click.pass_obj
 @handles_refusals
 def wear_forecast(
@@ -230,8 +221,8 @@ def wear_forecast(
                     str(one.trend.rope.serial),
                     one.trend.last().smallest.format_inches(3),
                     one.trend.left().format_inches(3),
-                    _day(one.comes_off(), "not wearing"),
-                    _day(one.order_by()),
+                    printed(one.comes_off(), "not wearing"),
+                    printed(one.order_by()),
                     one.confidence(),
                 )
                 for one in found

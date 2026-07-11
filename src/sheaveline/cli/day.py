@@ -17,6 +17,7 @@ from decimal import Decimal
 
 import click
 
+from sheaveline.cli.common import day_of, day_option
 from sheaveline.cli.main import Console, cli, handles_refusals
 from sheaveline.errors import ParseError
 from sheaveline.ops.logbook import DayLog
@@ -27,8 +28,6 @@ from sheaveline.persistence.uow import UnitOfWork
 from sheaveline.plant.identity import LiftCode
 from sheaveline.reports.forms import Align, Column, Table
 from sheaveline.schedule.hours import OperatingWindow, TimeOfDay
-
-DAY_FORMAT = "%Y-%m-%d"
 
 
 @cli.group()
@@ -43,10 +42,6 @@ def _on(work: UnitOfWork, code: str, when: date) -> DayLog:
 def _moment(when: date, clock: str) -> datetime:
     """A wall clock time on the day being worked on."""
     return datetime.combine(when, TimeOfDay.parse(clock).to_time())
-
-
-def _default_day(console: Console, given: datetime | None) -> date:
-    return given.date() if given else console.today()
 
 
 def _failures(given: tuple[str, ...]) -> dict[str, str]:
@@ -73,7 +68,7 @@ def _failures(given: tuple[str, ...]) -> dict[str, str]:
     metavar="CODE:REASON",
     help="A check that did not pass. The reason is not optional.",
 )
-@click.option("--on", "on", type=click.DateTime([DAY_FORMAT]), default=None)
+@day_option()
 @click.pass_obj
 @handles_refusals
 def start_day(
@@ -88,7 +83,7 @@ def start_day(
     on: datetime | None,
 ) -> None:
     """Open the book on a machine for the day and walk the pre op sheet."""
-    when = _default_day(console, on)
+    when = day_of(console, on)
     window = OperatingWindow.parse(first_load, last_load, sweep_by)
     with console.work() as work:
         lift = work.lifts.get(LiftCode.parse(code))
@@ -126,12 +121,12 @@ def start_day(
 @click.argument("at")
 @click.argument("text")
 @click.option("--by", required=True, help="Who wrote it.")
-@click.option("--on", "on", type=click.DateTime([DAY_FORMAT]), default=None)
+@day_option()
 @click.pass_obj
 @handles_refusals
 def add_note(console: Console, code: str, at: str, text: str, by: str, on: datetime | None) -> None:
     """Write a line in the book."""
-    when = _default_day(console, on)
+    when = day_of(console, on)
     with console.work() as work:
         log = _on(work, code, when)
         work.day_logs.replace(log.note(TimeOfDay.parse(at), text, by))
@@ -150,7 +145,7 @@ def add_note(console: Console, code: str, at: str, text: str, by: str, on: datet
 )
 @click.option("--by", required=True, help="Who called it.")
 @click.option("--note", default="", help="Needed on anything reportable.")
-@click.option("--on", "on", type=click.DateTime([DAY_FORMAT]), default=None)
+@day_option()
 @click.pass_obj
 @handles_refusals
 def call_stop(
@@ -163,7 +158,7 @@ def call_stop(
     on: datetime | None,
 ) -> None:
     """Stop the machine and say why."""
-    when = _default_day(console, on)
+    when = day_of(console, on)
     event = StopEvent(
         lift=LiftCode.parse(code),
         kind=StopKind[kind.upper()],
@@ -185,7 +180,7 @@ def call_stop(
 @click.argument("at")
 @click.option("--by", required=True, help="Who restarted it.")
 @click.option("--line-checked", is_flag=True, help="The line has been walked.")
-@click.option("--on", "on", type=click.DateTime([DAY_FORMAT]), default=None)
+@day_option()
 @click.option("--next-day", is_flag=True, help="The restart is the following morning.")
 @click.pass_obj
 @handles_refusals
@@ -200,7 +195,7 @@ def restart_lift(
     next_day: bool,
 ) -> None:
     """Run it again, naming the stop by the time it was called."""
-    when = _default_day(console, on)
+    when = day_of(console, on)
     back = when + timedelta(days=1 if next_day else 0)
     with console.work() as work:
         event = work.day_logs.restart(
@@ -220,7 +215,7 @@ def restart_lift(
 @click.argument("cycles", type=int)
 @click.option("--by", required=True, help="Who read it.")
 @click.option("--replaced", is_flag=True, help="The meter itself was changed.")
-@click.option("--on", "on", type=click.DateTime([DAY_FORMAT]), default=None)
+@day_option()
 @click.pass_obj
 @handles_refusals
 def read_meter(
@@ -235,7 +230,7 @@ def read_meter(
     """Write down the hour meter and the cycle counter."""
     reading = MeterReading(
         lift=LiftCode.parse(code),
-        day=_default_day(console, on),
+        day=day_of(console, on),
         hours=Decimal(hours),
         cycles=cycles,
         read_by=by,
@@ -249,12 +244,12 @@ def read_meter(
 
 @day.command("show")
 @click.argument("code")
-@click.option("--on", "on", type=click.DateTime([DAY_FORMAT]), default=None)
+@day_option()
 @click.pass_obj
 @handles_refusals
 def show_day(console: Console, code: str, on: datetime | None) -> None:
     """Print the book for one machine on one day."""
-    when = _default_day(console, on)
+    when = day_of(console, on)
     with console.work() as work:
         log = _on(work, code, when)
         stops = work.day_logs.stops_on(log.lift, when)
