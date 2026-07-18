@@ -84,7 +84,7 @@ def test_the_records_on_one_machine_come_back_in_order(client):
             headers=headers(Role.MECHANIC),
         )
     client.post("/lifts/JP/inspections", json=inspection(code="M1"), headers=headers(Role.MECHANIC))
-    body = client.get("/lifts/JP/inspections", headers=headers()).json()
+    body = client.get("/lifts/JP/inspections", headers=headers()).json()["items"]
     assert len(body) == 3
     assert [one["done"] for one in body][:2] == ["2025-01-08", "2025-01-15"]
 
@@ -92,7 +92,7 @@ def test_the_records_on_one_machine_come_back_in_order(client):
 def test_the_records_can_be_narrowed_to_one_job(client):
     client.post("/lifts/JP/inspections", json=inspection(), headers=headers(Role.MECHANIC))
     client.post("/lifts/JP/inspections", json=inspection(code="M1"), headers=headers(Role.MECHANIC))
-    body = client.get("/lifts/JP/inspections?job=m1", headers=headers()).json()
+    body = client.get("/lifts/JP/inspections?job=m1", headers=headers()).json()["items"]
     assert [one["code"] for one in body] == ["M1"]
 
 
@@ -153,10 +153,13 @@ def test_the_open_orders_can_be_narrowed_by_machine_and_by_priority(client):
         json={**order_body(level="serious"), "where": "SB-T2"},
         headers=headers(Role.MECHANIC),
     )
-    assert len(client.get("/work-orders", headers=headers()).json()) == 2
-    assert len(client.get("/work-orders?lift=JP", headers=headers()).json()) == 1
+    every = client.get("/work-orders", headers=headers()).json()
+    assert every["total"] == 2
+    assert every["next_offset"] is None
+    one_lift = client.get("/work-orders?lift=JP", headers=headers()).json()
+    assert one_lift["total"] == 1
     urgent = client.get("/work-orders?priority=immediate", headers=headers()).json()
-    assert [one["lift"] for one in urgent] == ["SB"]
+    assert [one["lift"] for one in urgent["items"]] == ["SB"]
 
 
 def test_one_order_comes_back_by_number(client):
@@ -175,7 +178,7 @@ def test_a_manager_closes_an_order(client):
     )
     assert reply.status_code == status.HTTP_200_OK
     assert reply.json()["open"] is False
-    assert client.get("/work-orders", headers=headers()).json() == []
+    assert client.get("/work-orders", headers=headers()).json()["items"] == []
 
 
 def test_a_mechanic_key_may_not_close_an_order(client):

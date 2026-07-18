@@ -15,6 +15,7 @@ from fastapi import APIRouter, Query, status
 
 from sheaveline.api.deps import Manager, Mechanic, Reader, Today, Work
 from sheaveline.api.lookups import Look, Lookup
+from sheaveline.api.paging import Page, Paged, Paging
 from sheaveline.api.schemas.upkeep import (
     CloseOrderIn,
     DefectOut,
@@ -58,16 +59,19 @@ def record_inspection(
     return InspectionOut.of(record)
 
 
-@router.get("/lifts/{code}/inspections", response_model=list[InspectionOut])
+@router.get("/lifts/{code}/inspections", response_model=Paged[InspectionOut])
 def list_inspections(
     code: str,
     job: str | None = Query(default=None),
     work: UnitOfWork = Work,
     look: Lookup = Look,
+    paging: Paging = Page,
     key: ApiKey = Reader,
-) -> list[InspectionOut]:
+) -> Paged[InspectionOut]:
+    """Paged, because a machine carries every walk it has ever had."""
     lift = look.lift_code(code)
-    return [InspectionOut.of(one) for one in work.inspections.for_lift(lift, job)]
+    found = work.inspections.for_lift(lift, job)
+    return Paged.of([InspectionOut.of(one) for one in found], paging)
 
 
 @router.get("/lifts/{code}/defects", response_model=list[DefectOut])
@@ -98,20 +102,21 @@ def raise_order(
     return WorkOrderOut.of(order)
 
 
-@router.get("/work-orders", response_model=list[WorkOrderOut])
+@router.get("/work-orders", response_model=Paged[WorkOrderOut])
 def list_orders(
     lift: str | None = Query(default=None),
     priority: Priority | None = Query(default=None),
     work: UnitOfWork = Work,
     look: Lookup = Look,
+    paging: Paging = Page,
     key: ApiKey = Reader,
-) -> list[WorkOrderOut]:
+) -> Paged[WorkOrderOut]:
     if priority is not None:
         found = work.work_orders.of_priority(priority)
     else:
         code = None if lift is None else look.lift_code(lift)
         found = work.work_orders.open_orders(code)
-    return [WorkOrderOut.of(one) for one in found]
+    return Paged.of([WorkOrderOut.of(one) for one in found], paging)
 
 
 @router.get("/work-orders/overdue", response_model=list[WorkOrderOut])

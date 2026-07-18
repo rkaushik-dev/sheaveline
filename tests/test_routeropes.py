@@ -74,7 +74,7 @@ def test_something_that_is_not_a_serial_is_a_four_hundred(client):
 
 
 def test_a_rope_starts_with_no_walks_against_it(client):
-    assert client.get(f"/ropes/{SERIAL}/surveys", headers=headers()).json() == []
+    assert client.get(f"/ropes/{SERIAL}/surveys", headers=headers()).json()["items"] == []
 
 
 def test_a_mechanic_records_a_walk_and_gets_the_verdict_back(client):
@@ -100,7 +100,7 @@ def test_a_worn_rope_comes_back_condemned_in_the_same_reply(client):
 
 def test_a_recorded_walk_comes_back_on_the_list(client):
     client.post(f"/ropes/{SERIAL}/surveys", json=survey_body(), headers=headers(Role.MECHANIC))
-    body = client.get(f"/ropes/{SERIAL}/surveys", headers=headers()).json()
+    body = client.get(f"/ropes/{SERIAL}/surveys", headers=headers()).json()["items"]
     assert len(body) == 1
     assert body[0]["taken"] == "2025-01-15"
     assert body[0]["smallest"]["station"] == "0.00 ft"

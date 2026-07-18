@@ -88,8 +88,8 @@ def test_a_machine_that_is_not_on_the_register(client):
 
 
 def test_the_days_a_machine_has_been_written_up(client):
-    assert client.get("/lifts/JP/days", headers=headers()).json() == ["2025-01-15"]
-    assert client.get("/lifts/SB/days", headers=headers()).json() == []
+    assert client.get("/lifts/JP/days", headers=headers()).json()["items"] == ["2025-01-15"]
+    assert client.get("/lifts/SB/days", headers=headers()).json()["items"] == []
 
 
 def test_a_stop_goes_in_and_says_what_follows_from_its_kind(client):
@@ -185,5 +185,7 @@ def test_the_meter_history_is_a_mechanics_key(client):
     assert plain.status_code == status.HTTP_401_UNAUTHORIZED
     reply = client.get("/lifts/JP/meters", headers=headers(Role.MECHANIC))
     assert reply.status_code == status.HTTP_200_OK
-    assert reply.json()[0]["cycles"] == 1_402_000
-    assert client.get("/lifts/SB/meters", headers=headers(Role.MECHANIC)).json() == []
+    assert reply.json()["items"][0]["cycles"] == 1_402_000
+    empty = client.get("/lifts/SB/meters", headers=headers(Role.MECHANIC))
+    assert empty.json()["items"] == []
+    assert empty.json()["total"] == 0

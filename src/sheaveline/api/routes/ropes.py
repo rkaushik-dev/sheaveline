@@ -12,6 +12,7 @@ from fastapi import APIRouter, status
 
 from sheaveline.api.deps import Mechanic, Reader, Work
 from sheaveline.api.lookups import Look, Lookup
+from sheaveline.api.paging import Page, Paged, Paging
 from sheaveline.api.schemas.ropework import (
     FindingOut,
     RopeFileOut,
@@ -41,15 +42,23 @@ def read_rope(serial: str, look: Lookup = Look, key: ApiKey = Reader) -> RopeOut
     return RopeOut.of(look.rope(serial))
 
 
-@router.get("/{serial}/surveys", response_model=list[WearSurveyOut])
+@router.get("/{serial}/surveys", response_model=Paged[WearSurveyOut])
 def list_surveys(
-    serial: str, work: UnitOfWork = Work, look: Lookup = Look, key: ApiKey = Reader
-) -> list[WearSurveyOut]:
+    serial: str,
+    work: UnitOfWork = Work,
+    look: Lookup = Look,
+    paging: Paging = Page,
+    key: ApiKey = Reader,
+) -> Paged[WearSurveyOut]:
+    """Paged, because a rope is walked monthly and lives eight years."""
     rope = look.rope(serial)
-    return [
-        WearSurveyOut.of(survey, assess_wear(survey).value)
-        for survey in work.wear_surveys.for_rope(rope)
-    ]
+    return Paged.of(
+        [
+            WearSurveyOut.of(survey, assess_wear(survey).value)
+            for survey in work.wear_surveys.for_rope(rope)
+        ],
+        paging,
+    )
 
 
 @router.post(

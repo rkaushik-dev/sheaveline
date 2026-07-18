@@ -13,7 +13,7 @@ never had a machine that ran across one.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
@@ -100,6 +100,7 @@ class EntryOut(BaseModel):
 
 class MeterOut(BaseModel):
     lift: LiftCodeText
+    day: date
     hours: str
     cycles: int
     read_by: str
@@ -109,6 +110,7 @@ class MeterOut(BaseModel):
     def of(cls, reading: MeterReading) -> MeterOut:
         return cls(
             lift=reading.lift,
+            day=reading.day,
             hours=str(reading.hours),
             cycles=reading.cycles,
             read_by=reading.read_by,

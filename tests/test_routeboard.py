@@ -95,7 +95,7 @@ def test_the_incidents_on_one_machine_come_back_in_order(client):
     )
     client.post("/lifts/JP/incidents", json=sprain(), headers=headers(Role.OPERATOR))
     client.post("/lifts/SB/incidents", json=sprain(), headers=headers(Role.OPERATOR))
-    body = client.get("/lifts/JP/incidents", headers=headers()).json()
+    body = client.get("/lifts/JP/incidents", headers=headers()).json()["items"]
     assert [one["at"] for one in body] == [
         "2025-01-15T10:00:00",
         "2025-01-15T14:00:00",

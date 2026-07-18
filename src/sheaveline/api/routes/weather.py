@@ -18,6 +18,7 @@ from fastapi import APIRouter, Query, status
 
 from sheaveline.api.deps import Manager, Operator, Reader, Today, Work
 from sheaveline.api.lookups import Look, Lookup
+from sheaveline.api.paging import Page, Paged, Paging
 from sheaveline.api.schemas.weather import (
     HoldOut,
     ObservationIn,
@@ -61,19 +62,22 @@ def record_observation(
     return ObservationOut.of(seen)
 
 
-@router.get("/weather/observations", response_model=list[ObservationOut])
+@router.get("/weather/observations", response_model=Paged[ObservationOut])
 def list_observations(
     station: str | None = Query(default=None),
     since: datetime | None = Query(default=None),
     work: UnitOfWork = Work,
     look: Lookup = Look,
+    paging: Paging = Page,
     key: ApiKey = Reader,
-) -> list[ObservationOut]:
+) -> Paged[ObservationOut]:
+    """Paged, because every station files a reading every ten minutes all winter."""
     where = None
     if station is not None:
         where = look.station(station)
     moment = since or datetime.min
-    return [ObservationOut.of(one) for one in work.weather.since(moment, where)]
+    found = work.weather.since(moment, where)
+    return Paged.of([ObservationOut.of(one) for one in found], paging)
 
 
 @router.get("/lifts/{code}/hold", response_model=HoldOut)

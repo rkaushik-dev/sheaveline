@@ -134,9 +134,10 @@ def test_the_readings_come_back_and_can_be_narrowed(client):
         json=reading(station="base", degrees="24 F"),
         headers=headers(Role.OPERATOR),
     )
-    assert len(client.get("/weather/observations", headers=headers()).json()) == 2
+    every = client.get("/weather/observations", headers=headers()).json()
+    assert every["total"] == 2
     summit = client.get("/weather/observations?station=summit", headers=headers()).json()
-    assert [one["station"] for one in summit] == ["summit"]
+    assert [one["station"] for one in summit["items"]] == ["summit"]
 
 
 def test_readings_can_be_narrowed_by_time(client):
@@ -147,7 +148,7 @@ def test_readings_can_be_narrowed_by_time(client):
             headers=headers(Role.OPERATOR),
         )
     body = client.get("/weather/observations?since=2025-01-15T12:20:00", headers=headers()).json()
-    assert [one["taken"] for one in body] == ["2025-01-15T12:35:00"]
+    assert [one["taken"] for one in body["items"]] == ["2025-01-15T12:35:00"]
 
 
 def test_a_quiet_reading_leaves_the_machine_clear(client):

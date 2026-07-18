@@ -18,8 +18,10 @@ from fastapi import APIRouter, status
 
 from sheaveline.api.deps import Mechanic, Operator, Reader, Work
 from sheaveline.api.lookups import Look, Lookup
+from sheaveline.api.paging import Page, Paged, Paging
 from sheaveline.api.schemas.ops import (
     DayLogOut,
+    MeterOut,
     RestartIn,
     StopIn,
     StopLogOut,
@@ -43,14 +45,17 @@ def read_day(
     return DayLogOut.of(work.day_logs.get(look.lift_code(code), day))
 
 
-@router.get("/lifts/{code}/days", response_model=list[str])
+@router.get("/lifts/{code}/days", response_model=Paged[str])
 def list_days(
     code: str,
     work: UnitOfWork = Work,
     look: Lookup = Look,
+    paging: Paging = Page,
     key: ApiKey = Reader,
-) -> list[str]:
-    return [one.isoformat() for one in work.day_logs.days_logged(look.lift_code(code))]
+) -> Paged[str]:
+    """Paged, because a machine that has run for ten seasons has fifteen hundred."""
+    days = work.day_logs.days_logged(look.lift_code(code))
+    return Paged.of([one.isoformat() for one in days], paging)
 
 
 @router.get("/lifts/{code}/days/{day}/stops", response_model=StopLogOut)
@@ -122,24 +127,15 @@ def open_stops(
     return [StopOut.of(one) for one in work.day_logs.open_stops(code)]
 
 
-@router.get("/lifts/{code}/meters", response_model=list[dict[str, object]])
+@router.get("/lifts/{code}/meters", response_model=Paged[MeterOut])
 def read_meters(
     code: str,
     work: UnitOfWork = Work,
     look: Lookup = Look,
+    paging: Paging = Page,
     key: ApiKey = Mechanic,
-) -> list[dict[str, object]]:
+) -> Paged[MeterOut]:
     """The hour meter and cycle counter as they were read, oldest first."""
     history = work.day_logs.meters(look.lift_code(code))
-    if history is None:
-        return []
-    return [
-        {
-            "day": one.day.isoformat(),
-            "hours": str(one.hours),
-            "cycles": one.cycles,
-            "read_by": one.read_by,
-            "meter_replaced": one.meter_replaced,
-        }
-        for one in history.readings
-    ]
+    readings = [] if history is None else list(history.readings)
+    return Paged.of([MeterOut.of(one) for one in readings], paging)

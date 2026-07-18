@@ -14,6 +14,7 @@ from fastapi import APIRouter, Query, status
 
 from sheaveline.api.deps import Manager, Operator, Reader, Today, Work
 from sheaveline.api.lookups import Look, Lookup
+from sheaveline.api.paging import Page, Paged, Paging
 from sheaveline.api.schemas.board import (
     FilingIn,
     FilingOut,
@@ -49,15 +50,23 @@ def record_incident(
     return IncidentOut.of(row_id, incident)
 
 
-@router.get("/lifts/{code}/incidents", response_model=list[IncidentOut])
+@router.get("/lifts/{code}/incidents", response_model=Paged[IncidentOut])
 def list_for_lift(
-    code: str, work: UnitOfWork = Work, look: Lookup = Look, key: ApiKey = Reader
-) -> list[IncidentOut]:
+    code: str,
+    work: UnitOfWork = Work,
+    look: Lookup = Look,
+    paging: Paging = Page,
+    key: ApiKey = Reader,
+) -> Paged[IncidentOut]:
+    """Paged, because the register is never cleared down."""
     lift = look.lift_code(code)
-    return [
-        IncidentOut.of(row_id, incident, filing)
-        for row_id, incident, filing in work.incidents.numbered_for_lift(lift)
-    ]
+    return Paged.of(
+        [
+            IncidentOut.of(row_id, incident, filing)
+            for row_id, incident, filing in work.incidents.numbered_for_lift(lift)
+        ],
+        paging,
+    )
 
 
 @router.get("/incidents/outstanding", response_model=list[OutstandingOut])
