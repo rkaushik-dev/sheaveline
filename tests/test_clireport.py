@@ -179,3 +179,63 @@ def test_the_packet_names_the_ropes_on_the_machines(runner, database):
     )
     assert "never walked" in reply.output
     assert "FAT-2019-04412" in reply.output
+
+
+def export(runner, database, sheet, *extra):
+    return run(
+        runner,
+        database,
+        "report",
+        "export",
+        sheet,
+        "--opens",
+        "2024-12-01",
+        "--closes",
+        "2025-04-15",
+        *extra,
+    )
+
+
+def test_every_sheet_exports_at_least_its_heading(runner, database):
+    for sheet in ("days", "stops", "incidents", "wear"):
+        reply = export(runner, database, sheet)
+        assert reply.exit_code == 0, sheet
+        assert "," in reply.output.splitlines()[0], sheet
+
+
+def test_a_sheet_nobody_has(runner, database):
+    reply = export(runner, database, "ropeway")
+    assert reply.exit_code == 2
+    assert "is not one of" in reply.output
+
+
+def test_the_days_that_were_written_up_come_out_as_rows(runner, database):
+    from datetime import date, timedelta
+
+    for offset in range(3):
+        write_up(database, john_paul(), date(2025, 1, 15) + timedelta(days=offset))
+    reply = export(runner, database, "days")
+    assert reply.exit_code == 0
+    lines = [one for one in reply.output.splitlines() if one]
+    assert len(lines) == 4
+    assert lines[0].startswith("lift,day,opened")
+    assert lines[1].startswith("JP,2025-01-15")
+
+
+def test_writing_to_a_file_says_how_many_rows_went_in(runner, database, tmp_path):
+    from datetime import date
+
+    write_up(database, john_paul(), date(2025, 1, 15))
+    made = tmp_path / "days.csv"
+    reply = export(runner, database, "days", "--to", str(made))
+    assert reply.exit_code == 0
+    assert f"1 rows to {made}" in reply.output
+    assert made.read_text().splitlines()[0].startswith("lift,day")
+
+
+def test_a_day_outside_the_season_does_not_come_out(runner, database):
+    from datetime import date
+
+    write_up(database, john_paul(), date(2025, 8, 1))
+    reply = export(runner, database, "days")
+    assert len([one for one in reply.output.splitlines() if one]) == 1
