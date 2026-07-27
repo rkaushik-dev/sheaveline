@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 
 from sheaveline.board.filing import Filing, FilingKind
 from sheaveline.board.incident import Incident
+from sheaveline.evac.drill import Drill, DrillRegister
 from sheaveline.measures.duration import Duration
 from sheaveline.measures.length import Length
 from sheaveline.measures.wind import Wind
@@ -31,6 +32,11 @@ from sheaveline.ops.shift import Assignment, Roster
 from sheaveline.ops.stop import StopEvent, StopLog
 from sheaveline.people.certification import Certificate, Endorsement, PersonnelFile
 from sheaveline.persistence.base import StorageError
+from sheaveline.persistence.mappers.evac import (
+    drill_from_row,
+    drill_to_row,
+    register_from_rows,
+)
 from sheaveline.persistence.mappers.ops import (
     day_log_from_row,
     day_log_to_row,
@@ -59,6 +65,7 @@ from sheaveline.persistence.mappers.plant import (
 from sheaveline.persistence.mappers.ropework import wear_from_row, wear_to_row
 from sheaveline.persistence.models.board import (
     CertificateRow,
+    DrillRow,
     FilingRow,
     IncidentRow,
 )
@@ -853,3 +860,38 @@ class PersonnelRepository(Repository):
             .order_by(AssignmentRow.starts)
         )
         return [(one.lift_code, assignment_from_row(one)) for one in rows]
+
+
+class DrillRepository(Repository):
+    """The evacuation drill register, which is what proves the plan works."""
+
+    def add(self, drill: Drill) -> None:
+        clash = self.session.scalar(
+            select(DrillRow).where(DrillRow.lift_code == drill.lift, DrillRow.on == drill.on)
+        )
+        if clash is not None:
+            raise StorageError(f"{drill.lift} was already drilled on {drill.on.isoformat()}")
+        self.session.add(drill_to_row(drill))
+        self.session.flush()
+
+    def register(self) -> DrillRegister:
+        return register_from_rows(self.many(select(DrillRow).order_by(DrillRow.on)))
+
+    def on_lift(self, code: LiftCode) -> list[Drill]:
+        rows = self.many(select(DrillRow).where(DrillRow.lift_code == code).order_by(DrillRow.on))
+        return [drill_from_row(one) for one in rows]
+
+    def last_full(self, code: LiftCode) -> Drill | None:
+        return self.register().last_full(code)
+
+    def expires(self, code: LiftCode) -> date | None:
+        return self.register().lift_expires(code)
+
+    def out_of_date(self, on: date) -> list[LiftCode]:
+        """Every machine whose annual drill has run out, which stops it running."""
+        held = self.register()
+        return [
+            code
+            for code in self.session.scalars(select(LiftRow.code))
+            if not held.lift_is_current(code, on)
+        ]

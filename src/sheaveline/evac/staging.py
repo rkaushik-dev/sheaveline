@@ -127,6 +127,8 @@ class StagingPlan:
 
     def clears_in(self) -> Duration:
         """Call out, then the busiest team, because the rest finish sooner."""
+        if not self.beats:
+            raise EvacuationError("nobody is on the hill")
         return self.call_out + self.busiest().work()
 
     def serial_time(self) -> Duration:
@@ -168,9 +170,12 @@ class StagingPlan:
         return len(self.beats)
 
     def __str__(self) -> str:
+        if not self.beats:
+            return f"nobody can work this line, {len(self.stranded)} carriers stranded"
+        note = f", {len(self.stranded)} stranded" if self.stranded else ""
         return (
             f"{len(self.beats)} teams, {len(self.stops())} carriers, "
-            f"clear in {self.clears_in().format_clock()}"
+            f"clear in {self.clears_in().format_clock()}{note}"
         )
 
 

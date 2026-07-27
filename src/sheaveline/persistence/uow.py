@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sheaveline.persistence.base import StorageError, build_sessions
 from sheaveline.persistence.repositories import (
     DayLogRepository,
+    DrillRepository,
     IncidentRepository,
     InspectionRepository,
     LiftRepository,
@@ -128,3 +129,7 @@ class UnitOfWork:
     @property
     def personnel(self) -> PersonnelRepository:
         return PersonnelRepository(self._require())
+
+    @property
+    def drills(self) -> DrillRepository:
+        return DrillRepository(self._require())
