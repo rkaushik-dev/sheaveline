@@ -257,3 +257,35 @@ def test_the_journal_never_lands_in_the_middle_of_a_report(loud, database):
     reply = loud.invoke(cli, ["--database", database, "--journal", "debug", "tables"])
     assert all(" info " not in one for one in reply.output.splitlines())
     assert all(" debug " not in one for one in reply.output.splitlines())
+
+
+def test_the_settings_command_prints_what_the_environment_says(loud, database, monkeypatch):
+    monkeypatch.setenv("SHEAVELINE_RESORT", "Snowbasin")
+    monkeypatch.setenv("SHEAVELINE_PORT", "9000")
+    monkeypatch.delenv("SHEAVELINE_KEY_FILE", raising=False)
+    reply = loud.invoke(cli, ["--database", database, "settings"])
+    assert reply.exit_code == 0
+    assert "SHEAVELINE_RESORT" in reply.output
+    assert "Snowbasin" in reply.output
+    assert "9000" in reply.output
+
+
+def test_the_settings_command_warns_when_no_keys_are_configured(loud, database, monkeypatch):
+    monkeypatch.delenv("SHEAVELINE_KEY_FILE", raising=False)
+    reply = loud.invoke(cli, ["--database", database, "settings"])
+    assert "would refuse every request" in reply.output
+
+
+def test_a_port_the_environment_cannot_mean(loud, database, monkeypatch):
+    monkeypatch.setenv("SHEAVELINE_PORT", "eight thousand")
+    reply = loud.invoke(cli, ["--database", database, "settings"])
+    assert reply.exit_code == 1
+    assert "SHEAVELINE_PORT" in reply.stderr
+
+
+def test_the_database_still_comes_from_the_environment_first(runner, tmp_path, monkeypatch):
+    wanted = f"sqlite+pysqlite:///{tmp_path / 'from-env.sqlite3'}"
+    monkeypatch.setenv("SHEAVELINE_DATABASE_URL", wanted)
+    reply = runner.invoke(cli, ["setup"])
+    assert reply.exit_code == 0
+    assert (tmp_path / "from-env.sqlite3").exists()

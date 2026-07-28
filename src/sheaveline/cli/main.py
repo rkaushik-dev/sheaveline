@@ -27,13 +27,14 @@ from sqlalchemy import Engine, inspect
 from sqlalchemy.exc import SQLAlchemyError
 
 from sheaveline import __version__
+from sheaveline.config import DATABASE, DEFAULT_DATABASE, KEYS, Configuration
 from sheaveline.errors import SheavelineError
 from sheaveline.journal import Journal, Level
 from sheaveline.persistence.base import build_engine, create_schema, table_names
 from sheaveline.persistence.uow import UnitOfWork
 
-DEFAULT_URL = "sqlite+pysqlite:///sheaveline.sqlite3"
-ENVIRONMENT_URL = "SHEAVELINE_DATABASE_URL"
+DEFAULT_URL = DEFAULT_DATABASE
+ENVIRONMENT_URL = DATABASE
 
 Result = TypeVar("Result")
 
@@ -182,3 +183,21 @@ def check(console: Console) -> None:
 
 def run() -> None:  # pragma: no cover - the console script entry
     sys.exit(cli())
+
+
+@cli.command()
+@click.pass_obj
+@handles_refusals
+def settings(console: Console) -> None:
+    """Print what the environment says, so the box in the equipment room can be checked.
+
+    Nothing printed here is a secret. The key file is named and not opened, and
+    the database url is the one that was going to be used anyway.
+    """
+    read = Configuration.from_environment()
+    for name, value in read.described():
+        console.say(f"{name:26} {value}")
+    console.say("")
+    console.say(str(read))
+    if not read.serves_keys():
+        console.say(f"{KEYS} is not set, so the http surface would refuse every request")
