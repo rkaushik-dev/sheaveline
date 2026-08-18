@@ -72,6 +72,7 @@ def build_app(settings: Settings) -> FastAPI:
         lifts,
         ops,
         ropes,
+        service,
         upkeep,
         weather,
     )
@@ -83,10 +84,7 @@ def build_app(settings: Settings) -> FastAPI:
     app.include_router(capacity.router)
     app.include_router(weather.router)
     app.include_router(ops.router)
-
-    @app.get("/health", tags=["service"])
-    def health() -> dict[str, str]:
-        return {"service": TITLE, "version": VERSION, "resort": settings.resort}
+    app.include_router(service.router)
 
     return app
 

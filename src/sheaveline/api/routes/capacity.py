@@ -12,13 +12,15 @@ at the same moment and neither sees the other's.
 
 from __future__ import annotations
 
+from datetime import date, timedelta
 from decimal import Decimal
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
-from sheaveline.api.deps import Reader
+from sheaveline.api.deps import Operator, Reader, Today
 from sheaveline.api.lookups import Look, Lookup
+from sheaveline.api.schemas.evac import StagingIn, StagingOut, TeamIn
 from sheaveline.api.schemas.measures import (
     DurationText,
     LengthFeet,
@@ -28,6 +30,9 @@ from sheaveline.api.schemas.measures import (
 from sheaveline.api.security import ApiKey
 from sheaveline.capacity.spacing import MINIMUM_INTERVAL, LineSpacing
 from sheaveline.capacity.uphill import UphillCapacity
+from sheaveline.evac.profile import EvacuationProfile
+from sheaveline.evac.staging import stage
+from sheaveline.evac.team import RescueKit, RescueTeam, TeamPool
 from sheaveline.line.catenary import SagModel, line_weight
 from sheaveline.line.geometry import LineGeometry
 from sheaveline.measures.length import Length
@@ -154,4 +159,46 @@ def read_geometry(
             FindingOut(where=one.where, severity=one.severity.value, detail=one.detail)
             for one in walk.findings()
         ],
+    )
+
+
+@router.post("/evacuation", response_model=StagingOut)
+def plan_evacuation(
+    code: str,
+    body: StagingIn,
+    look: Lookup = Look,
+    today: date = Today,
+    key: ApiKey = Operator,
+) -> StagingOut:
+    """Where to park the teams so the busiest one finishes soonest.
+
+    The teams come up in the request because who is on the hill this afternoon is
+    not something this system holds. The line is, and that is the half nobody can
+    type in from memory.
+    """
+    lift = look.lift(code)
+    spacing = LineSpacing.of(lift)
+    weight = line_weight(
+        lift.rope.spec.weight, lift.carriers.on_line()[0].gross(), spacing.spacing()
+    )
+    profile = EvacuationProfile(
+        lift, SagModel(weight, Load.parse(body.tension)), Length.parse(body.snow)
+    )
+    pool = TeamPool.of([_team(one, today) for one in body.teams])
+    return StagingOut.of(stage(profile, pool, Length(0), today, seats_filled=body.seats_filled))
+
+
+def _team(given: TeamIn, on: date) -> RescueTeam:
+    return RescueTeam.of(
+        given.name,
+        tuple(f"{given.name} {one + 1}" for one in range(given.people)),
+        RescueKit(
+            ladder=None if given.ladder_feet is None else Length.from_feet(given.ladder_feet),
+            rope=None if given.rope_feet is None else Length.from_feet(given.rope_feet),
+            seats=2,
+            harnesses=given.people,
+            radios=1,
+        ),
+        Length(0),
+        on + timedelta(days=1),
     )
