@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import date, datetime, time
 from functools import wraps
 from typing import Any, TypeVar
@@ -27,20 +28,23 @@ from sqlalchemy import Engine, inspect
 from sqlalchemy.exc import SQLAlchemyError
 
 from sheaveline import __version__
-from sheaveline.config import DATABASE, DEFAULT_DATABASE, KEYS, Configuration
+from sheaveline.config import DATABASE, JOURNAL, KEYS, Configuration
 from sheaveline.errors import SheavelineError
 from sheaveline.journal import Journal, Level
 from sheaveline.persistence.base import build_engine, create_schema, table_names
 from sheaveline.persistence.uow import UnitOfWork
 
-DEFAULT_URL = DEFAULT_DATABASE
-ENVIRONMENT_URL = DATABASE
-
 Result = TypeVar("Result")
 
 
 class Console:
-    """What every command is handed: a database and a way to write to the page."""
+    """What every command is handed: a database, a clock and a way to write.
+
+    It used to carry the database url as well, and the journal level, and its own
+    two constants for where the records live by default. All four of those are
+    settings and there is a module that reads settings, so the console holds the
+    configuration it was built from and stops keeping a second copy of half of it.
+    """
 
     def __init__(
         self,
@@ -48,11 +52,26 @@ class Console:
         now: Callable[[], datetime] | None = None,
         today: Callable[[], date] | None = None,
         journal: Journal | None = None,
+        configuration: Configuration | None = None,
     ) -> None:
         self.engine = engine
         self._now = now
         self._today = today
         self.journal = journal if journal is not None else Journal.silent()
+        self.configuration = configuration if configuration is not None else Configuration()
+
+    @classmethod
+    def of(cls, read: Configuration, journal: Journal | None = None) -> Console:
+        """The one place a running copy is built from what it was told."""
+        return cls(
+            build_engine(read.database),
+            journal=journal if journal is not None else _journal_for(read),
+            configuration=read,
+        )
+
+    @property
+    def resort(self) -> str:
+        return self.configuration.resort
 
     def now(self) -> datetime:
         """One clock, because a command that reads both wants them to agree."""
@@ -113,35 +132,51 @@ def _first_line(error: Exception) -> str:
     return str(error).strip().splitlines()[0]
 
 
+def _journal_for(read: Configuration) -> Journal:
+    """Silent unless it was asked for, because reports go to standard output."""
+    if read.journal is Level.OFF:
+        return Journal.silent()
+    return Journal.to_stderr(read.journal)
+
+
 @click.group()
 @click.option(
     "--database",
-    envvar=ENVIRONMENT_URL,
-    default=DEFAULT_URL,
-    show_default=True,
-    help="Where the records live.",
+    "database",
+    default=None,
+    metavar="URL",
+    help=f"Where the records live. ${DATABASE} if you leave it off.",
 )
 @click.option(
     "--journal",
     "level",
     type=click.Choice([one.name.lower() for one in Level]),
-    default="off",
-    show_default=True,
-    help="What the software writes about itself, on standard error.",
+    default=None,
+    help=f"What the software writes about itself, on standard error. ${JOURNAL} otherwise.",
 )
 @click.version_option(version=__version__, prog_name="sheaveline")
 @click.pass_context
-def cli(context: click.Context, database: str, level: str) -> None:
+@handles_refusals
+def cli(context: click.Context, database: str | None, level: str | None) -> None:
     """Lift department records for a passenger ropeway operation.
 
-    The journal is off by default. These commands print reports to standard
-    output and a stray line in the middle of an eighty column page is a page
-    nobody can read, so saying anything about ourselves has to be asked for.
+    Everything is read from the environment and the flags override it, so the box
+    in the equipment room is configured once and a person at a keyboard can still
+    point one command somewhere else.
+
+    The journal is off unless it is asked for. These commands print reports to
+    standard output and a stray line in the middle of an eighty column page is a
+    page nobody can read.
+
+    This one is wrapped like every other command, because a port the environment
+    cannot mean is a refusal and deserves a sentence rather than a traceback.
     """
-    wanted = Level.named(level)
-    book = Journal.silent() if wanted is Level.OFF else Journal.to_stderr(wanted)
-    context.obj = Console(build_engine(database), journal=book)
-    book.debug("started", database=database)
+    read = Configuration.from_environment()
+    if database is not None:
+        read = replace(read, database=database)
+    read = replace(read, journal=Level.OFF if level is None else Level.named(level))
+    context.obj = Console.of(read)
+    context.obj.journal.debug("started", database=read.database)
 
 
 @cli.command()
@@ -194,7 +229,7 @@ def settings(console: Console) -> None:
     Nothing printed here is a secret. The key file is named and not opened, and
     the database url is the one that was going to be used anyway.
     """
-    read = Configuration.from_environment()
+    read = console.configuration
     for name, value in read.described():
         console.say(f"{name:26} {value}")
     console.say("")

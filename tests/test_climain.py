@@ -2,7 +2,8 @@ import pytest
 from click.testing import CliRunner
 
 from sheaveline import __version__
-from sheaveline.cli.main import DEFAULT_URL, ENVIRONMENT_URL, Console, cli
+from sheaveline.cli.main import Console, cli
+from sheaveline.config import DATABASE, DEFAULT_DATABASE, Configuration
 from sheaveline.errors import SheavelineError
 from sheaveline.persistence.base import build_engine, create_schema
 from sheaveline.plant.classes import PlantError
@@ -81,7 +82,7 @@ def test_check_names_the_machines_when_there_are_any(runner, database):
 
 
 def test_the_database_comes_from_the_environment_when_it_is_set(runner, database, monkeypatch):
-    monkeypatch.setenv(ENVIRONMENT_URL, database)
+    monkeypatch.setenv(DATABASE, database)
     reply = runner.invoke(cli, ["setup"])
     assert reply.exit_code == 0
     reply = runner.invoke(cli, ["check"])
@@ -89,7 +90,7 @@ def test_the_database_comes_from_the_environment_when_it_is_set(runner, database
 
 
 def test_an_explicit_database_beats_the_environment(runner, tmp_path, monkeypatch):
-    monkeypatch.setenv(ENVIRONMENT_URL, "sqlite+pysqlite:///wrong.sqlite3")
+    monkeypatch.setenv(DATABASE, "sqlite+pysqlite:///wrong.sqlite3")
     chosen = f"sqlite+pysqlite:///{tmp_path / 'right.sqlite3'}"
     runner.invoke(cli, ["--database", chosen, "setup"])
     reply = runner.invoke(cli, ["--database", chosen, "check"])
@@ -97,7 +98,29 @@ def test_an_explicit_database_beats_the_environment(runner, tmp_path, monkeypatc
 
 
 def test_the_default_url_is_a_file_beside_the_office_machine():
-    assert DEFAULT_URL.endswith("sheaveline.sqlite3")
+    assert DEFAULT_DATABASE.endswith("sheaveline.sqlite3")
+
+
+def test_the_console_carries_the_configuration_it_was_built_from(tmp_path):
+    """It used to keep its own copy of half of these, under different names."""
+    read = Configuration(
+        database=f"sqlite+pysqlite:///{tmp_path / 'x.sqlite3'}", resort="Snowbasin"
+    )
+    console = Console.of(read)
+    assert console.configuration is read
+    assert console.resort == "Snowbasin"
+    assert str(console.engine.url).endswith("x.sqlite3")
+    console.engine.dispose()
+
+
+def test_the_flag_overrides_the_environment_without_losing_the_rest(runner, tmp_path, monkeypatch):
+    monkeypatch.setenv("SHEAVELINE_RESORT", "Snowbasin")
+    monkeypatch.setenv(DATABASE, "sqlite+pysqlite:///wrong.sqlite3")
+    chosen = f"sqlite+pysqlite:///{tmp_path / 'right.sqlite3'}"
+    reply = runner.invoke(cli, ["--database", chosen, "settings"])
+    assert reply.exit_code == 0
+    assert "right.sqlite3" in reply.output
+    assert "Snowbasin" in reply.output
 
 
 def test_a_console_hands_out_a_unit_of_work():

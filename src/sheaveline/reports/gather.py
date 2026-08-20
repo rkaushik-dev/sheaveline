@@ -17,7 +17,7 @@ the four in front of it and get out of the way.
 
 from __future__ import annotations
 
-from datetime import date, datetime, time, timedelta
+from datetime import date, timedelta
 from typing import Final
 
 from sheaveline.capacity.spacing import LineSpacing
@@ -25,7 +25,6 @@ from sheaveline.line.catenary import SagModel, line_weight
 from sheaveline.line.geometry import GeometryVerdict, LineGeometry
 from sheaveline.measures.length import Length
 from sheaveline.measures.load import Load
-from sheaveline.ops.stop import StopKind
 from sheaveline.persistence.uow import UnitOfWork
 from sheaveline.plant.identity import LiftCode
 from sheaveline.plant.lift import Lift
@@ -164,34 +163,6 @@ def season_summary(work: UnitOfWork, season: Season) -> SeasonSummary:
             if found is not None:
                 records.append(found)
     return SeasonSummary.of(season, records)
-
-
-def stops_between(work: UnitOfWork, lift: LiftCode, start: date, end: date) -> dict[StopKind, int]:
-    """How often each kind was called over a stretch, which the board asks about."""
-    counted: dict[StopKind, int] = {}
-    for one in work.day_logs.stops_on(lift, end).stops:
-        counted[one.kind] = counted.get(one.kind, 0) + 1
-    for day in work.day_logs.days_logged(lift):
-        if not start <= day <= end:
-            continue
-        for one in work.day_logs.stops_on(lift, day).stops:
-            counted[one.kind] = counted.get(one.kind, 0) + 1
-    return counted
-
-
-def opening_window(work: UnitOfWork, on: date) -> tuple[datetime, datetime]:
-    """The earliest first load and the latest sweep across the hill."""
-    starts: list[datetime] = []
-    ends: list[datetime] = []
-    for code in work.lifts.codes():
-        log = work.day_logs.find_log(code, on)
-        if log is None:
-            continue
-        starts.append(datetime.combine(on, log.first_load.to_time()))
-        ends.append(datetime.combine(on, log.sweep_by.to_time()))
-    if not starts:
-        return (datetime.combine(on, time.min), datetime.combine(on, time.min))
-    return (min(starts), max(ends))
 
 
 def machine_year(

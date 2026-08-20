@@ -21,7 +21,6 @@ from sheaveline.api.schemas.measures import (
 )
 from sheaveline.measures.duration import Duration
 from sheaveline.measures.length import Length
-from sheaveline.measures.temperature import Temperature
 from sheaveline.measures.wind import Wind
 from sheaveline.weather.hold import WeatherHold
 from sheaveline.weather.observation import Observation, Precipitation, Station
@@ -146,7 +145,3 @@ class HoldOut(BaseModel):
                 for one in decision.holds()
             ],
         )
-
-
-def default_temperature() -> Temperature:
-    return Temperature.from_degrees_f(32)
