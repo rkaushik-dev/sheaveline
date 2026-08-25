@@ -103,15 +103,24 @@ class WearTrend:
 
 @dataclass(frozen=True)
 class Retirement:
-    """When the rope comes off, and whether that leaves time to buy the next one."""
+    """When the rope comes off, and whether that leaves time to buy the next one.
+
+    The penalty is how a dry rope gets into the arithmetic. A rope past its
+    dressing wears faster than the file says it has been wearing, and projecting
+    the past rate forward on a rope nobody has lubricated since March is how a
+    department gets surprised in January. One means it has been looked after.
+    """
 
     trend: WearTrend
     on: date
     lead_time: int = LEAD_TIME_DAYS
+    penalty: Decimal = Decimal(1)
 
     def __post_init__(self) -> None:
         if self.lead_time < 0:
             raise RopeworkError("a lead time is not negative")
+        if self.penalty < 1:
+            raise RopeworkError("looking after a rope does not make it wear more slowly")
 
     def is_projectable(self) -> bool:
         return self.trend.is_wearing() and self.trend.days_covered() > 0
@@ -123,7 +132,7 @@ class Retirement:
         left = self.trend.left()
         if left.mils <= 0:
             return 0
-        return int(Decimal(left.mils) / self.trend.mils_a_day())
+        return int(Decimal(left.mils) / (self.trend.mils_a_day() * self.penalty))
 
     def comes_off(self) -> date | None:
         remaining = self.days_left()
@@ -149,6 +158,9 @@ class Retirement:
             return None
         return wanted > until
 
+    def is_penalised(self) -> bool:
+        return self.penalty > 1
+
     def confidence(self) -> str:
         """How much of a line the file actually carries, said in one word."""
         walks = self.trend.walks()
@@ -173,8 +185,9 @@ def forecast(
     surveys: Sequence[WearSurvey],
     on: date,
     lead_time: int = LEAD_TIME_DAYS,
+    penalty: Decimal = Decimal(1),
 ) -> Retirement:
-    return Retirement(WearTrend.of(rope, surveys), on, lead_time)
+    return Retirement(WearTrend.of(rope, surveys), on, lead_time, penalty)
 
 
 def orderable(
