@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from sheaveline.persistence.base import StorageError, build_sessions
 from sheaveline.persistence.repositories import (
+    AlignmentRepository,
     DayLogRepository,
     DrillRepository,
     IncidentRepository,
@@ -133,3 +134,7 @@ class UnitOfWork:
     @property
     def drills(self) -> DrillRepository:
         return DrillRepository(self._require())
+
+    @property
+    def alignment(self) -> AlignmentRepository:
+        return AlignmentRepository(self._require())

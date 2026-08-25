@@ -57,6 +57,8 @@ from sheaveline.persistence.mappers.people import (
     roster_from_rows,
 )
 from sheaveline.persistence.mappers.plant import (
+    alignment_from_row,
+    alignment_to_row,
     lift_from_row,
     lift_to_row,
     rope_from_row,
@@ -76,7 +78,11 @@ from sheaveline.persistence.models.ops import (
     MeterReadingRow,
     StopRow,
 )
-from sheaveline.persistence.models.plant import HaulRopeRow, LiftRow
+from sheaveline.persistence.models.plant import (
+    AlignmentSurveyRow,
+    HaulRopeRow,
+    LiftRow,
+)
 from sheaveline.persistence.models.ropework import WearSurveyRow
 from sheaveline.persistence.models.upkeep import (
     DefectRow,
@@ -85,6 +91,7 @@ from sheaveline.persistence.models.upkeep import (
 )
 from sheaveline.persistence.models.weather import ObservationRow, StationRow
 from sheaveline.persistence.numbering import take_number
+from sheaveline.plant.alignment import AlignmentHistory, AlignmentSurvey
 from sheaveline.plant.identity import FilingNumber, LiftCode, RopeSerial
 from sheaveline.plant.lift import Lift
 from sheaveline.plant.rope import HaulRope
@@ -895,3 +902,49 @@ class DrillRepository(Repository):
             for code in self.session.scalars(select(LiftRow.code))
             if not held.lift_is_current(code, on)
         ]
+
+
+class AlignmentRepository(Repository):
+    """The autumn total station work, kept so a tower's movement reads as a rate."""
+
+    def __init__(self, session: Session) -> None:
+        super().__init__(session)
+        self.lifts = LiftRepository(session)
+
+    def add(self, survey: AlignmentSurvey) -> None:
+        code = survey.line.lift
+        clash = self.session.scalar(
+            select(AlignmentSurveyRow).where(
+                AlignmentSurveyRow.lift_code == code,
+                AlignmentSurveyRow.taken == survey.taken,
+            )
+        )
+        if clash is not None:
+            raise StorageError(f"{code} was already shot on {survey.taken.isoformat()}")
+        self.session.add(alignment_to_row(survey))
+        self.session.flush()
+
+    def surveys(self, code: LiftCode) -> list[AlignmentSurvey]:
+        line = self.lifts.get(code).towers
+        rows = self.many(
+            select(AlignmentSurveyRow)
+            .where(AlignmentSurveyRow.lift_code == code)
+            .order_by(AlignmentSurveyRow.taken)
+        )
+        return [alignment_from_row(one, line) for one in rows]
+
+    def latest(self, code: LiftCode) -> AlignmentSurvey:
+        line = self.lifts.get(code).towers
+        row = self.one(
+            select(AlignmentSurveyRow)
+            .where(AlignmentSurveyRow.lift_code == code)
+            .order_by(AlignmentSurveyRow.taken.desc()),
+            f"{code} has never been shot",
+        )
+        return alignment_from_row(row, line)
+
+    def history(self, code: LiftCode) -> AlignmentHistory:
+        found = self.surveys(code)
+        if not found:
+            raise StorageError(f"{code} has never been shot")
+        return AlignmentHistory.of(found)

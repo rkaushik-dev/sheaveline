@@ -7,12 +7,20 @@ because the answer usually ends up pinned to a noticeboard.
 
 from __future__ import annotations
 
+from datetime import datetime
+from decimal import Decimal
+
 import click
 
 from sheaveline.capacity.spacing import LineSpacing
 from sheaveline.capacity.uphill import UphillCapacity
-from sheaveline.cli.common import machine
+from sheaveline.cli.common import day_of, day_option, machine
 from sheaveline.cli.main import Console, cli, handles_refusals
+from sheaveline.errors import ParseError
+from sheaveline.measures.angle import Angle
+from sheaveline.measures.length import Length
+from sheaveline.plant.alignment import AlignmentSurvey, TowerShot
+from sheaveline.plant.identity import LiftCode, TowerRef
 from sheaveline.reports.forms import Align, Column, Report, Table
 
 
@@ -171,3 +179,104 @@ def withdraw_lift(console: Console, code: str, yes: bool) -> None:
         work.lifts.remove(found.code)
         work.commit()
     console.say(f"{code.upper()} withdrawn")
+
+
+@lift.command("shoot")
+@click.argument("code")
+@click.option("--surveyor", required=True, help="Who ran the instrument.")
+@click.option(
+    "--shot",
+    "shots",
+    multiple=True,
+    required=True,
+    metavar="TOWER:STATION:CROSSARM:OFFSET",
+    help="One tower. Give it once a tower.",
+)
+@day_option("The day it was shot.")
+@click.pass_obj
+@handles_refusals
+def shoot_towers(
+    console: Console, code: str, surveyor: str, shots: tuple[str, ...], on: datetime | None
+) -> None:
+    """Write an autumn total station survey into the file.
+
+    A shot is tower:station:crossarm:offset, all in feet except the offset, which
+    is how far the top is out of plumb and is written in inches because that is
+    what it is read to.
+    """
+    when = day_of(console, on)
+    with console.work() as work:
+        found = machine(work, code)
+        survey = AlignmentSurvey.of(
+            line=found.towers,
+            taken=when,
+            surveyor=surveyor,
+            shots=[parse_shot(one) for one in shots],
+        )
+        work.alignment.add(survey)
+        work.commit()
+    console.say(f"{found.code} shot {when.isoformat()} by {surveyor}, {len(survey)} towers")
+    for line in survey.findings():
+        console.say(f"  {line}")
+    if survey.is_clean():
+        console.say("  every tower is where the drawing says it is")
+
+
+def parse_shot(text: str) -> TowerShot:
+    """Read tower:station:crossarm:offset, the order it comes off the instrument."""
+    parts = text.split(":")
+    if len(parts) != 4:
+        raise ParseError(text, "a shot written tower:station:crossarm:offset")
+    ref, station, crossarm, offset = parts
+    return TowerShot(
+        ref=TowerRef.parse(ref.strip()),
+        station=Length.parse(f"{station.strip()} ft"),
+        crossarm_elevation=Length.parse(f"{crossarm.strip()} ft"),
+        offset_at_top=Length.parse(f"{offset.strip()} in"),
+    )
+
+
+@lift.command("drift")
+@click.argument("code")
+@click.pass_obj
+@handles_refusals
+def tower_drift(console: Console, code: str) -> None:
+    """How fast each tower is going over, and when it reaches the tolerance."""
+    with console.work() as work:
+        wanted = LiftCode.parse(code)
+        history = work.alignment.history(wanted)
+    latest = history.latest()
+    console.say(f"{wanted} read across {len(history)} surveys to {latest.taken.isoformat()}")
+    console.page(
+        Table.of(
+            [
+                Column("tower", 8),
+                Column("lean now", 10, Align.RIGHT),
+                Column("a year", 10, Align.RIGHT),
+                Column("settled", 10, Align.RIGHT),
+                Column("years left", 11, Align.RIGHT),
+            ],
+            [
+                (
+                    str(one.ref),
+                    latest.lean(one.ref).format_degrees(),
+                    _rate(history.lean_a_year(one.ref)),
+                    latest.settlement(one.ref).format_inches(2),
+                    _years(history.years_until_out_of_plumb(one.ref)),
+                )
+                for one in latest.shots
+            ],
+        ).lines()
+    )
+    for ref in history.moving():
+        years = history.years_until_out_of_plumb(ref)
+        if years is not None and years <= 5:
+            console.say(f"{ref} is out of plumb inside five years at this rate")
+
+
+def _rate(found: Angle | None) -> str:
+    return "flat" if found is None or found.millidegrees == 0 else found.format_degrees()
+
+
+def _years(found: Decimal | None) -> str:
+    return "not moving" if found is None else f"{found:.1f}"

@@ -17,6 +17,7 @@ from collections.abc import Sequence
 
 from sheaveline.persistence.base import StorageError
 from sheaveline.persistence.models.plant import (
+    AlignmentSurveyRow,
     BrakeRow,
     CarrierRow,
     HaulRopeRow,
@@ -25,7 +26,9 @@ from sheaveline.persistence.models.plant import (
     SurveyShotRow,
     TerminalRow,
     TowerRow,
+    TowerShotRow,
 )
+from sheaveline.plant.alignment import AlignmentSurvey, TowerShot
 from sheaveline.plant.carrier import Carrier, CarrierSet, Grip
 from sheaveline.plant.classes import GripType
 from sheaveline.plant.identity import LiftCode
@@ -246,3 +249,46 @@ def _terminals_of(row: LiftRow) -> Sequence[Terminal]:
         raise StorageError(f"{row.code} has {len(row.terminals)} terminals, not two")
     ordered = sorted(row.terminals, key=lambda one: one.station.mils)
     return [terminal_from_row(one) for one in ordered]
+
+
+def alignment_to_row(survey: AlignmentSurvey) -> AlignmentSurveyRow:
+    row = AlignmentSurveyRow(
+        lift_code=survey.line.lift,
+        taken=survey.taken,
+        surveyor=survey.surveyor,
+    )
+    for shot in survey.shots:
+        row.shots.append(
+            TowerShotRow(
+                tower_ref=shot.ref,
+                station=shot.station,
+                crossarm_elevation=shot.crossarm_elevation,
+                offset_at_top=shot.offset_at_top,
+            )
+        )
+    return row
+
+
+def alignment_from_row(row: AlignmentSurveyRow, line: TowerLine) -> AlignmentSurvey:
+    """The shots against the line they were shot on, which the row does not carry.
+
+    A shot knows a tower reference and nothing about how tall that tower is, and
+    the whole reading depends on the height. So the line is handed in, the same
+    way a wear survey is handed the rope it was taken against.
+    """
+    if row.lift_code != line.lift:
+        raise StorageError(f"that survey is on {row.lift_code} and not {line.lift}")
+    return AlignmentSurvey.of(
+        line=line,
+        taken=row.taken,
+        surveyor=row.surveyor,
+        shots=[
+            TowerShot(
+                ref=one.tower_ref,
+                station=one.station,
+                crossarm_elevation=one.crossarm_elevation,
+                offset_at_top=one.offset_at_top,
+            )
+            for one in row.shots
+        ],
+    )

@@ -22,6 +22,7 @@ from sqlalchemy import (
     Date,
     Enum,
     ForeignKey,
+    Index,
     Integer,
     String,
     UniqueConstraint,
@@ -45,6 +46,7 @@ from sheaveline.persistence.types import (
     RopeSerialColumn,
     SpeedColumn,
     TorqueColumn,
+    TowerRefColumn,
 )
 from sheaveline.plant.classes import (
     CarrierType,
@@ -53,7 +55,7 @@ from sheaveline.plant.classes import (
     LiftClass,
     TerminalRole,
 )
-from sheaveline.plant.identity import LiftCode, RopeSerial
+from sheaveline.plant.identity import LiftCode, RopeSerial, TowerRef
 from sheaveline.plant.rope import LayDirection, RopeConstruction, RopeGrade
 from sheaveline.plant.terminal import BrakeKind
 from sheaveline.plant.tower import AssemblyKind
@@ -237,3 +239,44 @@ class HaulRopeRow(Base):
     lift: Mapped[LiftRow | None] = relationship(back_populates="ropes")
 
     __table_args__ = (CheckConstraint("splices >= 0", name="splices_not_negative"),)
+
+
+class AlignmentSurveyRow(Base):
+    """One autumn's total station work on one machine."""
+
+    __tablename__ = "alignment_surveys"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    lift_code: Mapped[LiftCode] = mapped_column(LiftCodeColumn, ForeignKey("lifts.code"))
+    taken: Mapped[date] = mapped_column(Date)
+    surveyor: Mapped[str] = mapped_column(String(64))
+
+    lift: Mapped[LiftRow] = relationship()
+    shots: Mapped[list[TowerShotRow]] = relationship(
+        back_populates="survey", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("lift_code", "taken", name="one_alignment_survey_a_day"),
+        Index("ix_alignment_by_machine", "lift_code", "taken"),
+    )
+
+
+class TowerShotRow(Base):
+    """One tower in one survey, as the instrument read it."""
+
+    __tablename__ = "tower_shots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    survey_id: Mapped[int] = mapped_column(Integer, ForeignKey("alignment_surveys.id"))
+    tower_ref: Mapped[TowerRef] = mapped_column(TowerRefColumn)
+    station: Mapped[Length] = mapped_column(LengthColumn)
+    crossarm_elevation: Mapped[Length] = mapped_column(LengthColumn)
+    offset_at_top: Mapped[Length] = mapped_column(LengthColumn)
+
+    survey: Mapped[AlignmentSurveyRow] = relationship(back_populates="shots")
+
+    __table_args__ = (
+        UniqueConstraint("survey_id", "tower_ref", name="one_shot_a_tower"),
+        CheckConstraint("station >= 0", name="shot_station_not_negative"),
+    )
