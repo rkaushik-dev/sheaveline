@@ -162,3 +162,37 @@ def test_the_migrations_ship_beside_the_package():
     assert (ROOT / "alembic.ini").exists()
     assert (ROOT / "migrations" / "env.py").exists()
     assert list((ROOT / "migrations" / "versions").glob("*.py"))
+
+
+def test_the_readme_names_every_package_that_ships():
+    """A package the README does not mention is one nobody knows exists."""
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    packages = sorted(
+        one.name
+        for one in (ROOT / "src" / "sheaveline").iterdir()
+        if one.is_dir() and (one / "__init__.py").exists()
+    )
+    assert packages
+    for name in packages:
+        assert f"`{name}`" in readme, name
+
+
+def test_the_readme_names_every_environment_variable_the_program_reads():
+    from sheaveline.config import EVERY_NAME
+
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    for name in EVERY_NAME:
+        assert name in readme, name
+
+
+def test_the_readme_does_not_promise_a_command_that_is_not_there():
+    from sheaveline.cli import cli
+
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    for line in readme.splitlines():
+        if not line.startswith("sheaveline "):
+            continue
+        word = line.split()[1]
+        if word.startswith("-"):
+            continue
+        assert word in cli.commands, word

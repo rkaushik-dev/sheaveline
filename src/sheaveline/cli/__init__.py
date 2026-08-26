@@ -7,6 +7,7 @@ from sheaveline.cli import (  # noqa: E402,F401  registered by import
     day,
     drawing,
     evac,
+    guide,
     plant,
     report,
     rope,
