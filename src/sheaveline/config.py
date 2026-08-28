@@ -84,6 +84,12 @@ class Configuration:
     key_file: Path | None = None
     host: str = DEFAULT_HOST
     port: int = DEFAULT_PORT
+    # Whether the journal level was actually named, which is not the same
+    # question as what it is. The server wants a journal by default and the
+    # command line does not, and neither of them can decide that from a Level
+    # that has already been defaulted. Without this the settings command reports
+    # off whatever the environment says, which is a settings command that lies.
+    journal_given: bool = False
 
     @classmethod
     def from_environment(cls, env: Mapping[str, str] | None = None) -> Configuration:
@@ -97,6 +103,7 @@ class Configuration:
             key_file=Path(keys) if keys else None,
             host=_text(found, HOST, DEFAULT_HOST),
             port=_port(found),
+            journal_given=bool(found.get(JOURNAL, "").strip()),
         )
 
     def is_in_memory(self) -> bool:

@@ -93,9 +93,14 @@ def test_the_steps_are_numbered_from_one(runner):
 def test_the_guide_reaches_every_command_group_this_program_has():
     """A group nobody's sequence mentions is a group nobody knows when to run."""
     named = {step.command.split()[0] for one in SEQUENCES for step in one.steps}
-    groups = {
-        name
-        for name, command in cli.commands.items()
-        if hasattr(command, "commands") and name not in ("drawing",)
-    }
+    groups = {name for name, command in cli.commands.items() if hasattr(command, "commands")}
+    assert groups
     assert groups <= named, groups - named
+
+
+def test_the_guide_does_not_name_a_group_this_program_does_not_have():
+    """The drawing commands hang off lift. A list typed by hand said otherwise."""
+    for one in SEQUENCES:
+        for step in one.steps:
+            head = step.command.split()[0]
+            assert head in cli.commands, f"{one.name}: there is no {head} command"

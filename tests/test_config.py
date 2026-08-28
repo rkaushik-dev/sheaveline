@@ -129,3 +129,16 @@ def test_the_one_line_summary_says_where_the_records_are():
     assert "Snowbasin" in printed
     assert ":9000" in printed
     assert DEFAULT_DATABASE in printed
+
+
+def test_the_configuration_says_whether_the_journal_was_actually_named():
+    """Off and unset are the same Level and not the same answer."""
+    assert not read().journal_given
+    assert read(**{JOURNAL: "info"}).journal_given
+    assert read(**{JOURNAL: "off"}).journal_given
+    assert not read(**{JOURNAL: "   "}).journal_given
+
+
+def test_an_unset_journal_still_reads_as_the_servers_default():
+    assert read().journal is Level.INFO
+    assert not read().journal_given

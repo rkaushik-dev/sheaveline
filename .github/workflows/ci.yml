@@ -120,9 +120,18 @@ jobs:
         run: |
           sheaveline --version
           sheaveline guide
-          for group in lift rope day upkeep board crew evac report drawing; do
-            sheaveline "$group" --help > /dev/null
-          done
+          # The list comes out of the program rather than being typed here. A
+          # hand written list names a group that was renamed six months ago and
+          # passes, or names one that never existed and fails for the wrong
+          # reason, and this job had both.
+          python - <<'PY'
+          import subprocess
+          from sheaveline.cli import cli
+
+          for name in sorted(cli.commands):
+              subprocess.run(["sheaveline", name, "--help"], check=True, capture_output=True)
+              print("ok", name)
+          PY
       - name: a fresh database comes up
         run: |
           export SHEAVELINE_DATABASE_URL=sqlite+pysqlite:///ci.sqlite3

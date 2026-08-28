@@ -174,7 +174,13 @@ def cli(context: click.Context, database: str | None, level: str | None) -> None
     read = Configuration.from_environment()
     if database is not None:
         read = replace(read, database=database)
-    read = replace(read, journal=Level.OFF if level is None else Level.named(level))
+    if level is not None:
+        read = replace(read, journal=Level.named(level), journal_given=True)
+    elif not read.journal_given:
+        # Nobody asked, so nothing is said. The environment's own default is
+        # info, which is right for the server and wrong for a program whose
+        # whole output is eighty column pages on standard out.
+        read = replace(read, journal=Level.OFF)
     context.obj = Console.of(read)
     context.obj.journal.debug("started", database=read.database)
 

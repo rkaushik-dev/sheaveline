@@ -14,6 +14,14 @@ def runner():
     return CliRunner()
 
 
+def _setting(printed, name):
+    """One row of what the settings command printed, by the variable it names."""
+    for line in printed.splitlines():
+        if line.startswith(name + " "):
+            return line[len(name) :].strip()
+    raise AssertionError(f"{name} is not on the page")
+
+
 @pytest.fixture
 def loud():
     """A runner that keeps the two streams apart, which the journal tests need."""
@@ -312,3 +320,34 @@ def test_the_database_still_comes_from_the_environment_first(runner, tmp_path, m
     reply = runner.invoke(cli, ["setup"])
     assert reply.exit_code == 0
     assert (tmp_path / "from-env.sqlite3").exists()
+
+
+def test_the_settings_command_reports_the_journal_that_was_asked_for(loud, database, monkeypatch):
+    """It used to print off whatever the environment said, which is a lie."""
+    monkeypatch.setenv("SHEAVELINE_JOURNAL", "warn")
+    reply = loud.invoke(cli, ["--database", database, "settings"])
+    assert reply.exit_code == 0
+    assert _setting(reply.output, "SHEAVELINE_JOURNAL") == "warn"
+
+
+def test_a_journal_named_in_the_environment_is_written_to(loud, database, monkeypatch):
+    monkeypatch.setenv("SHEAVELINE_JOURNAL", "debug")
+    reply = loud.invoke(cli, ["--database", database, "tables"])
+    assert reply.exit_code == 0
+    assert "started" in reply.stderr
+
+
+def test_the_flag_still_beats_the_environment(loud, database, monkeypatch):
+    monkeypatch.setenv("SHEAVELINE_JOURNAL", "debug")
+    reply = loud.invoke(cli, ["--database", database, "--journal", "off", "tables"])
+    assert reply.exit_code == 0
+    assert reply.stderr == ""
+
+
+def test_nothing_named_anywhere_still_says_nothing(loud, database, monkeypatch):
+    monkeypatch.delenv("SHEAVELINE_JOURNAL", raising=False)
+    reply = loud.invoke(cli, ["--database", database, "tables"])
+    assert reply.exit_code == 0
+    assert reply.stderr == ""
+    printed = loud.invoke(cli, ["--database", database, "settings"]).output
+    assert _setting(printed, "SHEAVELINE_JOURNAL") == "off"
