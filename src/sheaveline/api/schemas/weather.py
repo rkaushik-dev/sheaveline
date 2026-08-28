@@ -20,10 +20,14 @@ from sheaveline.api.schemas.measures import (
     WindText,
 )
 from sheaveline.measures.duration import Duration
-from sheaveline.measures.length import Length
 from sheaveline.measures.wind import Wind
 from sheaveline.weather.hold import WeatherHold
-from sheaveline.weather.observation import Observation, Precipitation, Station
+from sheaveline.weather.observation import (
+    UNLIMITED_VISIBILITY,
+    Observation,
+    Precipitation,
+    Station,
+)
 
 
 class StationIn(BaseModel):
@@ -50,7 +54,13 @@ class ObservationIn(BaseModel):
     bearing: BearingText
     gust: WindText | None = None
     temperature: TemperatureText
-    visibility: LengthFeet = Length.from_feet(30000)
+    # The default is the text a client would send rather than the Length it
+    # becomes, because a Length is not JSON and pydantic drops a default it
+    # cannot encode, with a warning nobody reads. Validating the default puts it
+    # back through the same parser every other value goes through.
+    visibility: LengthFeet = Field(
+        default=UNLIMITED_VISIBILITY.format_feet_inches(), validate_default=True
+    )
     precipitation: Precipitation = Precipitation.NONE
     rime: bool = False
     lightning_within: LengthFeet | None = None
