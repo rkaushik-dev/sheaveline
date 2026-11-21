@@ -152,12 +152,13 @@ public final class Main {
     }
 
     /**
-     * The command tree, wired to a terminal: the same tree {@link #run} parses.
+     * The command tree, wired to a terminal: the same tree {@link #run} parses, for anything that
+     * wants to know which commands there are without running one.
      *
      * @param terminal where help and errors go
      * @return the tree
      */
-    static CommandLine tree(Terminal terminal) {
+    public static CommandLine tree(Terminal terminal) {
         return tree(new Main(terminal));
     }
 
