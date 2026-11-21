@@ -36,10 +36,8 @@ public final class Quote {
                 } else if (point < 0x20 || point == 0x7f) {
                     out.append(String.format(java.util.Locale.ROOT, "\\x%02x", point));
                 } else if (!printable(point)) {
-                    out.append(
-                            point <= 0xffff
-                                    ? String.format(java.util.Locale.ROOT, "\\u%04x", point)
-                                    : String.format(java.util.Locale.ROOT, "\\U%08x", point));
+                    String shape = point < 0x100 ? "\\x%02x" : point <= 0xffff ? "\\u%04x" : "\\U%08x";
+                    out.append(String.format(java.util.Locale.ROOT, shape, point));
                 } else {
                     out.appendCodePoint(point);
                 }

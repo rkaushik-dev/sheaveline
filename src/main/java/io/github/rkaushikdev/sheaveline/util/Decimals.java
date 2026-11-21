@@ -141,6 +141,30 @@ public final class Decimals {
     }
 
     /**
+     * A decimal printed to a fixed number of places, ties going to the even digit.
+     *
+     * @param value the number
+     * @param places digits after the point
+     * @return such as {@code 148} or {@code 0.2500000000}, never in exponent form
+     */
+    public static String fixed(BigDecimal value, int places) {
+        return quantize(value, places).toPlainString();
+    }
+
+    /**
+     * A double printed to a fixed number of places from its exact binary value, ties going to the
+     * even digit. {@code String.format("%.2f", 0.125)} gives {@code 0.13}; this gives {@code 0.12},
+     * which is what the exact value calls for.
+     *
+     * @param value a finite double
+     * @param places digits after the point
+     * @return the fixed point text
+     */
+    public static String fixed(double value, int places) {
+        return new BigDecimal(value).setScale(places, RoundingMode.HALF_EVEN).toPlainString();
+    }
+
+    /**
      * Whether the value is a whole number, whatever its scale.
      *
      * @param value the number
