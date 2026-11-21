@@ -1,6 +1,7 @@
 package io.github.rkaushikdev.sheaveline.persistence;
 
 import jakarta.persistence.TypedQuery;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -94,10 +95,10 @@ public class Repository {
      *
      * @param query the query
      * @param <T> what it finds
-     * @return the rows
+     * @return the rows, read only
      */
     protected final <T> List<T> many(TypedQuery<T> query) {
-        return List.copyOf(query.getResultList());
+        return Collections.unmodifiableList(query.getResultList());
     }
 
     /**

@@ -27,7 +27,8 @@ public final class RopeRepository extends Repository {
      * @throws StorageError when a rope with its serial is already on file
      */
     public void add(HaulRope rope) {
-        add(rope, Optional.empty());
+        refuseASecond(rope);
+        session().persist(PlantMapper.ropeToRow(rope));
     }
 
     /**
@@ -38,14 +39,14 @@ public final class RopeRepository extends Repository {
      * @throws StorageError when a rope with its serial is already on file
      */
     public void add(HaulRope rope, LiftCode liftCode) {
-        add(rope, Optional.of(liftCode));
+        refuseASecond(rope);
+        session().persist(PlantMapper.ropeToRow(rope, liftCode));
     }
 
-    private void add(HaulRope rope, Optional<LiftCode> liftCode) {
+    private void refuseASecond(HaulRope rope) {
         if (exists(rope.serial())) {
             throw new StorageError("rope " + rope.serial() + " is already on file");
         }
-        session().persist(PlantMapper.ropeToRow(rope, liftCode));
     }
 
     /**

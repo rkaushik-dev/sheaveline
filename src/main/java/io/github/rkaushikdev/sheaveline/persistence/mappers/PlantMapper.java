@@ -88,7 +88,9 @@ public final class PlantMapper {
      * @return a new row, with a new specification row
      */
     public static HaulRopeRow ropeToRow(HaulRope rope) {
-        return ropeToRow(rope, Optional.empty());
+        HaulRopeRow row = new HaulRopeRow(rope.serial(), specToRow(rope.spec()), rope.installed(), rope.length());
+        row.setSplices(rope.splices());
+        return row;
     }
 
     /**
@@ -99,20 +101,8 @@ public final class PlantMapper {
      * @return a new row, with a new specification row
      */
     public static HaulRopeRow ropeToRow(HaulRope rope, LiftCode liftCode) {
-        return ropeToRow(rope, Optional.of(liftCode));
-    }
-
-    /**
-     * A rope as a row.
-     *
-     * @param rope the rope
-     * @param liftCode the machine it is on, or empty for a spare
-     * @return a new row, with a new specification row
-     */
-    public static HaulRopeRow ropeToRow(HaulRope rope, Optional<LiftCode> liftCode) {
-        HaulRopeRow row = new HaulRopeRow(rope.serial(), specToRow(rope.spec()), rope.installed(), rope.length());
-        row.setSplices(rope.splices());
-        row.setLiftCode(liftCode.orElse(null));
+        HaulRopeRow row = ropeToRow(rope);
+        row.setLiftCode(liftCode);
         return row;
     }
 
