@@ -1,23 +1,14 @@
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.ruff_cache/
-.mypy_cache/
-.coverage
-htmlcov/
-build/
-dist/
-*.egg-info/
-.venv/
-*.sqlite3
-sheaveline.sqlite3
-
 # Java
 target/
+build/
 .gradle/
 .idea/
 *.iml
 out/
+
+# H2 database files a local run leaves behind
 *.mv.db
 *.trace.db
+
+# Worktrees and local scratch
 .worktrees/
