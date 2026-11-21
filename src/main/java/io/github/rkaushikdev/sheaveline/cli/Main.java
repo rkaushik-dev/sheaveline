@@ -72,6 +72,8 @@ import picocli.CommandLine.UnmatchedArgumentException;
             PlantCommands.LiftGroup.class,
             RopeCommands.RopeGroup.class,
             DayCommands.DayGroup.class,
+            CrewCommands.CrewGroup.class,
+            EvacCommands.EvacGroup.class,
             ReportCommands.ReportGroup.class
         })
 public final class Main {
