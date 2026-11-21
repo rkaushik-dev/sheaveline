@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.StreamSupport;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
@@ -89,12 +90,15 @@ public final class Http {
         try {
             response = mvc.perform(request).andReturn().getResponse();
         } catch (Exception unanswered) {
-            return Answer.serverError();
+            return Answer.serverError(unanswered);
         }
         Map<String, String> headers = new LinkedHashMap<>();
         response.getHeaderNames().forEach(name -> headers.put(name.toLowerCase(Locale.ROOT), response.getHeader(name)));
         return new Answer(
-                response.getStatus(), new String(response.getContentAsByteArray(), StandardCharsets.UTF_8), headers);
+                response.getStatus(),
+                new String(response.getContentAsByteArray(), StandardCharsets.UTF_8),
+                headers,
+                Optional.empty());
     }
 
     /**
@@ -172,14 +176,25 @@ public final class Http {
      * @param status the status code
      * @param text the body
      * @param headers the headers, names in lower case
+     * @param failure what the service fell over with, when it answered nothing
      */
-    public record Answer(int status, String text, Map<String, String> headers) {
+    public record Answer(int status, String text, Map<String, String> headers, Optional<Exception> failure) {
 
-        static Answer serverError() {
-            return new Answer(500, "Internal Server Error", Map.of());
+        static Answer serverError(Exception failure) {
+            return new Answer(500, "Internal Server Error", Map.of(), Optional.of(failure));
         }
 
+        /**
+         * The body as JSON.
+         *
+         * @return the tree
+         * @throws IllegalStateException carrying what the service fell over with, when it answered
+         *     nothing
+         */
         public JsonNode json() {
+            if (failure.isPresent()) {
+                throw new IllegalStateException("the service answered nothing", failure.get());
+            }
             return tree(text);
         }
 

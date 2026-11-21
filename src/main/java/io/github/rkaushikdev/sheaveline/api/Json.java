@@ -24,8 +24,9 @@ import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
  * How the service reads, writes and describes JSON, in one place so the application, its document
  * and the tests of its shapes cannot drift apart.
  *
- * <p>Field names are snake case. A field nobody declared is ignored. Text fields take text and
- * nothing else, and a number with a fraction is not quietly cut down to a whole one. Dates and
+ * <p>Field names are snake case. A field nobody declared is ignored, and a field with a default
+ * that is left out, or sent as null, takes its default. Text fields take text and nothing else, and
+ * a number with a fraction is not quietly cut down to a whole one. Dates and
  * moments are ISO strings. The department's enumerations travel as the words a person reads, both
  * ways, and every measure travels as the text a person writes on a form ({@link WireText}).
  */
@@ -40,7 +41,6 @@ public final class Json {
      */
     public static void configure(Jackson2ObjectMapperBuilder builder) {
         builder.propertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
-                .featuresToEnable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
                 .featuresToDisable(
                         DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
                         DeserializationFeature.ACCEPT_FLOAT_AS_INT,
