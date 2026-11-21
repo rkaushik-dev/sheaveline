@@ -11,3 +11,13 @@ dist/
 .venv/
 *.sqlite3
 sheaveline.sqlite3
+
+# Java
+target/
+.gradle/
+.idea/
+*.iml
+out/
+*.mv.db
+*.trace.db
+.worktrees/
