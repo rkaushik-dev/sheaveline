@@ -15,9 +15,12 @@ import io.github.rkaushikdev.sheaveline.persistence.UnitOfWork;
 import io.github.rkaushikdev.sheaveline.plant.PlantError;
 import jakarta.persistence.PersistenceException;
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.SQLException;
@@ -54,6 +57,25 @@ class CliMainTest {
                 .findFirst()
                 .map(line -> line.substring(name.length()).strip())
                 .orElseThrow(() -> new AssertionError(name + " is not on the page"));
+    }
+
+    /** Run one command line on the process's own terminal, with its two streams caught for the test. */
+    private static Shell.Reply onTheProcessStreams(String... args) {
+        PrintStream out = System.out;
+        PrintStream err = System.err;
+        ByteArrayOutputStream caughtOut = new ByteArrayOutputStream();
+        ByteArrayOutputStream caughtErr = new ByteArrayOutputStream();
+        int code;
+        try {
+            System.setOut(new PrintStream(caughtOut, true, StandardCharsets.UTF_8));
+            System.setErr(new PrintStream(caughtErr, true, StandardCharsets.UTF_8));
+            code = Main.run(Terminal.system(), args);
+        } finally {
+            System.setOut(out);
+            System.setErr(err);
+        }
+        return new Shell.Reply(
+                code, caughtOut.toString(StandardCharsets.UTF_8), caughtErr.toString(StandardCharsets.UTF_8));
     }
 
     private static Terminal quiet(StringWriter err) {
@@ -243,11 +265,20 @@ class CliMainTest {
         assertThat(err.toString()).contains("Odd: something the domain refused");
     }
 
+    /**
+     * The driver can print on the process's own streams as well as the program can, so this runs
+     * the command the way the process does, on those streams, and reads what landed on them.
+     */
     @Test
     void aDatabaseThatWillNotOpenIsASentenceToo() {
         Shell.Reply reply = shell.on(NOWHERE, "setup");
         assertThat(reply.code()).isEqualTo(Main.NOT_ANSWERING);
         assertThat(reply.output()).contains("the database will not answer").doesNotContain(STACK_FRAME);
+
+        Shell.Reply process = onTheProcessStreams("--database", NOWHERE, "setup");
+        assertThat(process.code()).isEqualTo(Main.NOT_ANSWERING);
+        assertThat(process.out()).isEmpty();
+        assertThat(process.err()).startsWith("the database will not answer: ").hasLineCount(1);
     }
 
     @Test

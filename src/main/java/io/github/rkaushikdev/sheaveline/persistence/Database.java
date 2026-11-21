@@ -63,6 +63,15 @@ public final class Database implements AutoCloseable {
      */
     static final String KEEP_IN_MEMORY = "DB_CLOSE_DELAY=-1";
 
+    /**
+     * H2 keeps a trace of its own errors in a file beside a database it opens from a file, and when
+     * it cannot write that file, because the directory cannot be made, it prints the failure and its
+     * stack on the process's own streams, around the one sentence the command line has to say. Every
+     * one of those errors reaches the program anyway, as the exception it reports, so the file trace
+     * is switched off.
+     */
+    static final String NO_TRACE_FILE = "TRACE_LEVEL_FILE=0";
+
     private static final String HISTORY_TABLE = "flyway_schema_history";
 
     private static final AtomicLong MEMORY_DATABASES = new AtomicLong();
@@ -117,9 +126,10 @@ public final class Database implements AutoCloseable {
     }
 
     /**
-     * The url as the driver gets it. H2 is told which column names are not keywords, and an
-     * in-memory database is kept for as long as this program wants it rather than for as long as
-     * one connection is open.
+     * The url as the driver gets it. H2 is told which column names are not keywords, an in-memory
+     * database is kept for as long as this program wants it rather than for as long as one connection
+     * is open, and a database in a file keeps no trace file of its own. A setting the url already
+     * names is left as it is.
      *
      * @param configured the url as configured
      * @return the url to connect with
@@ -130,8 +140,13 @@ public final class Database implements AutoCloseable {
         }
         String upper = configured.toUpperCase(Locale.ROOT);
         StringBuilder url = new StringBuilder(configured);
-        if (configured.contains(":mem:") && !upper.contains("DB_CLOSE_DELAY")) {
+        boolean inMemory = configured.contains(":mem:");
+        if (inMemory && !upper.contains("DB_CLOSE_DELAY")) {
             url.append(';').append(KEEP_IN_MEMORY);
+        }
+        boolean served = upper.startsWith("JDBC:H2:TCP:") || upper.startsWith("JDBC:H2:SSL:");
+        if (!inMemory && !served && !upper.contains("TRACE_LEVEL_FILE")) {
+            url.append(';').append(NO_TRACE_FILE);
         }
         if (!upper.contains("NON_KEYWORDS")) {
             url.append(';').append(NON_KEYWORDS);
