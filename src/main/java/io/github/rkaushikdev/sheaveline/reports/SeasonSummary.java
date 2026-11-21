@@ -4,7 +4,6 @@ import io.github.rkaushikdev.sheaveline.measures.Duration;
 import io.github.rkaushikdev.sheaveline.ops.StopKind;
 import io.github.rkaushikdev.sheaveline.plant.LiftCode;
 import io.github.rkaushikdev.sheaveline.schedule.Season;
-import io.github.rkaushikdev.sheaveline.util.Decimals;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -210,7 +209,7 @@ public record SeasonSummary(Season season, List<DayRecord> records, Map<LiftCode
         page.field("closed", season.closes().toString());
         page.field("operating days", season.length());
         page.field("machines", tallied.size());
-        page.field("availability", percent(hillAvailability()));
+        page.field("availability", Figures.percent(hillAvailability()));
 
         page.section("by machine");
         page.table(Table.of(
@@ -227,10 +226,10 @@ public record SeasonSummary(Season season, List<DayRecord> records, Map<LiftCode
                                 one.lift().toString(),
                                 one.daysOpen(),
                                 one.daysShut(),
-                                hours(one.scheduled(), 0),
-                                hours(one.running(), 0),
-                                hours(one.chargeable(), 1),
-                                percent(one.availability())))
+                                Figures.hours(one.scheduled(), 0),
+                                Figures.hours(one.running(), 0),
+                                Figures.hours(one.chargeable(), 1),
+                                Figures.percent(one.availability())))
                         .toList()));
 
         page.section("worst day a machine");
@@ -240,8 +239,8 @@ public record SeasonSummary(Season season, List<DayRecord> records, Map<LiftCode
                     .ifPresent(day -> worst.add(List.of(
                             one.lift().toString(),
                             day.day().toString(),
-                            hours(day.chargeable(), 1),
-                            percent(day.availability()))));
+                            Figures.hours(day.chargeable(), 1),
+                            Figures.percent(day.availability()))));
         }
         page.table(Table.of(
                 List.of(
@@ -278,13 +277,5 @@ public record SeasonSummary(Season season, List<DayRecord> records, Map<LiftCode
      */
     public String text() {
         return render().text();
-    }
-
-    private static String hours(Duration duration, int places) {
-        return Decimals.fixed(duration.hours(), places) + " h";
-    }
-
-    private static String percent(BigDecimal fraction) {
-        return Decimals.fixed(Decimals.multiply(fraction, 100), 1) + "%";
     }
 }

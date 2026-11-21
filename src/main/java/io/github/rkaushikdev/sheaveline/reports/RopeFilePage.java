@@ -1,6 +1,5 @@
 package io.github.rkaushikdev.sheaveline.reports;
 
-import io.github.rkaushikdev.sheaveline.measures.Length;
 import io.github.rkaushikdev.sheaveline.plant.HaulRope;
 import io.github.rkaushikdev.sheaveline.ropework.BreakSurvey;
 import io.github.rkaushikdev.sheaveline.ropework.Finding;
@@ -9,7 +8,6 @@ import io.github.rkaushikdev.sheaveline.ropework.RopeFile;
 import io.github.rkaushikdev.sheaveline.ropework.SpliceRegister;
 import io.github.rkaushikdev.sheaveline.ropework.Verdict;
 import io.github.rkaushikdev.sheaveline.ropework.WearSurvey;
-import io.github.rkaushikdev.sheaveline.util.Decimals;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
@@ -131,7 +129,7 @@ public record RopeFilePage(
         page.field("nominal diameter", rope.diameter().formatInches(3));
         page.field("condemning diameter", rope.spec().condemningDiameter().formatInches(3));
         page.field("breaking strength", rope.spec().breakingStrength().formatPounds());
-        page.field("length", feet(rope.length()));
+        page.field("length", Figures.feet(rope.length()));
         page.field("installed", rope.installed().toString());
         page.field("splices", rope.splices());
         page.field("seasons in service", rope.seasonsInService(on));
@@ -162,7 +160,7 @@ public record RopeFilePage(
                                     one.taken().toString(),
                                     one.inspector(),
                                     one.smallest().mean().formatInches(3),
-                                    feet(one.smallest().station()),
+                                    Figures.feet(one.smallest().station()),
                                     Verdict.assessWear(one).value()))
                             .toList()));
         }
@@ -214,7 +212,7 @@ public record RopeFilePage(
                             new Column("kind", 12)),
                     register.splices().stream()
                             .map(one -> List.of(
-                                    feet(one.station()),
+                                    Figures.feet(one.station()),
                                     one.made().toString(),
                                     one.madeBy(),
                                     one.tucks(),
@@ -234,10 +232,6 @@ public record RopeFilePage(
      */
     public String text() {
         return render().text();
-    }
-
-    private static String feet(Length length) {
-        return Decimals.fixed(length.feet(), 0) + " ft";
     }
 
     private static <T> Optional<T> latest(List<T> taken) {
