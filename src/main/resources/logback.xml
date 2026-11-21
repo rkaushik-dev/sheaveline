@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Warnings and worse go to standard error, and nothing goes to standard output, which is where the
+     pages go. The program's own account of itself is the journal, which it writes itself. -->
+<configuration>
+    <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
+        <encoder>
+            <pattern>%d{HH:mm:ss} %-5level %logger{36} %msg%n</pattern>
+        </encoder>
+    </appender>
+    <!-- A database that will not open, and a write the database refuses, are reported by the command
+         line in one sentence of its own. The mapping's and the driver's own account of them is the
+         stack nobody at the keyboard can use. -->
+    <logger name="org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean" level="OFF"/>
+    <logger name="org.hibernate.engine.jdbc.spi.SqlExceptionHelper" level="OFF"/>
+    <root level="WARN">
+        <appender-ref ref="console"/>
+    </root>
+</configuration>
