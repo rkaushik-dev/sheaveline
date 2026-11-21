@@ -27,12 +27,12 @@ import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
 import org.springframework.util.ClassUtils;
 
 /**
- * The database floor: one connection pool, one schema built by the migrations, and one way to get
- * a session.
+ * The database floor: one connection pool, one schema built by the migrations, and the sessions
+ * every piece of work runs in.
  *
- * <p>Sessions are handed out by {@link #session()} for work that decides its own commits, and by
- * {@link #inSession(Consumer)} for the small units of work nearly everything here is. Every write
- * in this system has an obvious boundary, and the one thing that must never happen is a half
+ * <p>Sessions come from here and nowhere else: {@link #session()} for work that decides its own
+ * commits, and {@link #inSession(Consumer)} for the small units of work nearly everything is. Every
+ * write in this system has an obvious boundary, and the one thing that must never happen is a half
  * written day log, so the scope commits or rolls back and there is no third option.
  *
  * <p>The entity manager factory is built the first time a session is asked for, and it checks the
