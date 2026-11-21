@@ -24,6 +24,7 @@ import io.github.rkaushikdev.sheaveline.plant.Lift;
 import io.github.rkaushikdev.sheaveline.plant.LiftClass;
 import io.github.rkaushikdev.sheaveline.plant.LiftCode;
 import io.github.rkaushikdev.sheaveline.plant.LineProfile;
+import io.github.rkaushikdev.sheaveline.plant.Resort;
 import io.github.rkaushikdev.sheaveline.plant.RopeConstruction;
 import io.github.rkaushikdev.sheaveline.plant.RopeGrade;
 import io.github.rkaushikdev.sheaveline.plant.RopeSerial;
@@ -460,6 +461,19 @@ public final class Hill {
                 LineProfile.fromSurvey(WC_SURVEY),
                 Speed.ofFeetPerMinute(560),
                 LocalDate.of(1996, 12, 6));
+    }
+
+    /**
+     * Ogden Peak with all three machines on its register.
+     *
+     * @return the resort
+     */
+    public static Resort theResort() {
+        return Resort.of(
+                "Ogden Peak",
+                HillCalendar.theSite(),
+                HillCalendar.theSeason(),
+                List.of(johnPaul(), strawberry(), wildcat()));
     }
 
     private static CarrierSet fleet(
