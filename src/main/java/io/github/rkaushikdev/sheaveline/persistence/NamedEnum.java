@@ -21,6 +21,8 @@ import io.github.rkaushikdev.sheaveline.plant.RopeGrade;
 import io.github.rkaushikdev.sheaveline.plant.TerminalRole;
 import io.github.rkaushikdev.sheaveline.ropework.IndicationKind;
 import io.github.rkaushikdev.sheaveline.ropework.TensionKind;
+import io.github.rkaushikdev.sheaveline.upkeep.DefectLevel;
+import io.github.rkaushikdev.sheaveline.upkeep.Priority;
 import io.github.rkaushikdev.sheaveline.weather.HoldReason;
 import io.github.rkaushikdev.sheaveline.weather.Precipitation;
 import jakarta.persistence.AttributeConverter;
@@ -273,6 +275,24 @@ public abstract class NamedEnum<E extends Enum<E>> implements AttributeConverter
         /** The converter. */
         public Posts() {
             super(Post.class);
+        }
+    }
+
+    /** A {@link DefectLevel}. */
+    @Converter(autoApply = true)
+    public static final class DefectLevels extends NamedEnum<DefectLevel> {
+        /** The converter. */
+        public DefectLevels() {
+            super(DefectLevel.class);
+        }
+    }
+
+    /** A work order's {@link Priority}. */
+    @Converter(autoApply = true)
+    public static final class Priorities extends NamedEnum<Priority> {
+        /** The converter. */
+        public Priorities() {
+            super(Priority.class);
         }
     }
 }
