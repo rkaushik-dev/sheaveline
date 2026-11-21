@@ -35,8 +35,8 @@ reading it is wearing gloves.
 ## What it is built with
 
 - Java 21, built with Maven through the wrapper in the repository
-- Spring Boot 3.5: Web MVC for the http surface, Spring Data JPA over Hibernate
-  for the records, Bean Validation for the request shapes
+- Spring Boot 3.5: Web MVC for the http surface, JPA over Hibernate for the
+  records, Bean Validation for the request shapes
 - Flyway for the schema, and H2 for the database: a file on disk by default, and
   in memory for the tests
 - picocli for the command line
