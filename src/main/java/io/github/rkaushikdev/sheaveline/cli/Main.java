@@ -70,7 +70,9 @@ import picocli.CommandLine.UnmatchedArgumentException;
             Main.Check.class,
             Main.Settings.class,
             PlantCommands.LiftGroup.class,
-            DayCommands.DayGroup.class
+            RopeCommands.RopeGroup.class,
+            DayCommands.DayGroup.class,
+            ReportCommands.ReportGroup.class
         })
 public final class Main {
 
