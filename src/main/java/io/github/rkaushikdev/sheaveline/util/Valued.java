@@ -5,16 +5,16 @@ import java.util.Optional;
 /**
  * An enumeration whose constants each carry the words they are written as.
  *
- * <p>The words are what the paperwork, the database and the http surface all read and write, so
- * {@code LiftClass.DETACHABLE_CHAIR} goes out as {@code "detachable chairlift"} everywhere. The
- * constant's Java name is never stored or shown.
+ * <p>The words are what the paperwork, the http surface and the printed pages read and write, so
+ * {@code LiftClass.DETACHABLE_CHAIR} is shown as {@code "detachable chairlift"}. The database and
+ * the lift drawing store the constant's name instead, which a reworded sentence cannot break.
  */
 public interface Valued {
 
     /**
      * The words this constant is written as.
      *
-     * @return the stored and printed form
+     * @return the printed form
      */
     String value();
 
