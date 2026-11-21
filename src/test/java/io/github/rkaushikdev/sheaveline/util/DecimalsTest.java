@@ -46,6 +46,15 @@ class DecimalsTest {
     }
 
     @Test
+    void aNegativeValueThatRoundsToZeroKeepsItsSign() {
+        assertThat(Decimals.fixed(new BigDecimal("-0.04"), 1)).isEqualTo("-0.0");
+        assertThat(Decimals.fixed(-0.04, 1)).isEqualTo("-0.0");
+        assertThat(Decimals.fixed(-0.0, 2)).isEqualTo("-0.00");
+        assertThat(Decimals.fixed(new BigDecimal("0.04"), 1)).isEqualTo("0.0");
+        assertThat(Decimals.fixed(new BigDecimal("-1.25"), 1)).isEqualTo("-1.2");
+    }
+
+    @Test
     void trimDropsTrailingZerosAndNeverPrintsAnExponent() {
         assertThat(Decimals.trim(new BigDecimal("3.120"))).isEqualTo("3.12");
         assertThat(Decimals.trim(new BigDecimal("2.0"))).isEqualTo("2");

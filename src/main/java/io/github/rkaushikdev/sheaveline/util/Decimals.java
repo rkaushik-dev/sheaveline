@@ -145,10 +145,11 @@ public final class Decimals {
      *
      * @param value the number
      * @param places digits after the point
-     * @return such as {@code 148} or {@code 0.2500000000}, never in exponent form
+     * @return such as {@code 148} or {@code 0.2500000000}, never in exponent form; a negative value
+     *     that rounds to zero keeps its sign, so {@code -0.04} to one place is {@code -0.0}
      */
     public static String fixed(BigDecimal value, int places) {
-        return quantize(value, places).toPlainString();
+        return signed(value.signum() < 0, quantize(value, places));
     }
 
     /**
@@ -161,7 +162,13 @@ public final class Decimals {
      * @return the fixed point text
      */
     public static String fixed(double value, int places) {
-        return new BigDecimal(value).setScale(places, RoundingMode.HALF_EVEN).toPlainString();
+        boolean negative = value < 0 || (value == 0 && 1 / value < 0);
+        return signed(negative, new BigDecimal(value).setScale(places, RoundingMode.HALF_EVEN));
+    }
+
+    private static String signed(boolean negative, BigDecimal rounded) {
+        String text = rounded.toPlainString();
+        return negative && rounded.signum() == 0 ? "-" + text : text;
     }
 
     /**
