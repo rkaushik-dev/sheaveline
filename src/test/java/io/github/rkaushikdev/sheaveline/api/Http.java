@@ -32,6 +32,15 @@ public final class Http {
     /** A mapper for the bodies the tests write and read, which are maps and trees. */
     static final ObjectMapper JSON = Json.mapper();
 
+    /** JSON {@code true}, to compare a field with when it must be the boolean and not merely truthy. */
+    public static final JsonNode TRUE = tree("true");
+
+    /** JSON {@code false}. */
+    public static final JsonNode FALSE = tree("false");
+
+    /** JSON {@code null}, which a field the service has no value for is written as. */
+    public static final JsonNode NULL = tree("null");
+
     private final MockMvc mvc;
 
     /**
