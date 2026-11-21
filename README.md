@@ -1,5 +1,11 @@
 # sheaveline
 
+[![CI](https://github.com/rkaushik-dev/sheaveline/actions/workflows/ci.yml/badge.svg)](https://github.com/rkaushik-dev/sheaveline/actions/workflows/ci.yml)
+![Java 21](https://img.shields.io/badge/Java-21-007396)
+![Spring Boot 3.5](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F)
+![Maven](https://img.shields.io/badge/build-Maven-C71A36)
+![JUnit 5](https://img.shields.io/badge/tests-JUnit%205-25A162)
+
 Lift department records for a passenger ropeway operation. Six machines on a
 Wasatch front hill, one haul rope each, and about a hundred and forty operating
 days a year to account for.
