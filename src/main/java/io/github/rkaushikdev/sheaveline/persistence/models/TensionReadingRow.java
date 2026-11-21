@@ -71,6 +71,22 @@ public class TensionReadingRow {
         this.temperature = temperature;
     }
 
+    /**
+     * A reading of the system on a machine, written on its own and found by the system through the
+     * machine's code.
+     *
+     * @param liftCode the machine whose system was read
+     * @param taken when it was taken
+     * @param carriage where the carriage sat
+     * @param measured the tension measured
+     * @param temperature the air temperature
+     */
+    public TensionReadingRow(
+            LiftCode liftCode, LocalDateTime taken, Length carriage, Load measured, Temperature temperature) {
+        this(taken, carriage, measured, temperature);
+        this.liftCode = liftCode;
+    }
+
     void takenOf(TensionSystemRow owner) {
         this.system = owner;
         this.liftCode = owner.getLiftCode();
