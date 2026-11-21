@@ -178,7 +178,9 @@ public final class Database implements AutoCloseable {
         Map<String, Object> properties = new LinkedHashMap<>();
         properties.put("hibernate.hbm2ddl.auto", ddl);
         properties.put("hibernate.show_sql", String.valueOf(echo));
-        properties.put("hibernate.jdbc.time_zone", "UTC");
+        // Dates and times go in as the wall clock they are. The records carry no zone, and going
+        // through one would move every moment by the offset of whichever machine wrote it.
+        properties.put("hibernate.type.java_time_use_direct_jdbc", "true");
         // A missing value is the database's to refuse, as every other broken rule is, so the
         // refusal looks the same whichever rule it was.
         properties.put("hibernate.check_nullability", "false");

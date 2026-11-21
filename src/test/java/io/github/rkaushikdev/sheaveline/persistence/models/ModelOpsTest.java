@@ -150,6 +150,12 @@ class ModelOpsTest {
                     .get()
                     .extracting(LocalDateTime::getDayOfMonth)
                     .isEqualTo(16);
+            // The moments are stored as the wall clock they were written at, whatever the zone of
+            // the machine writing them, so a stop never slides into the day before.
+            assertThat(session.entityManager()
+                            .createNativeQuery("select cast(stopped as varchar) from stops")
+                            .getSingleResult())
+                    .isEqualTo("2025-01-15 16:00:00");
         }
     }
 
