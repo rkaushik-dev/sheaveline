@@ -139,24 +139,12 @@ public class ObservationRow {
         return taken;
     }
 
-    public void setTaken(LocalDateTime taken) {
-        this.taken = taken;
-    }
-
     public Speed getWindSpeed() {
         return windSpeed;
     }
 
-    public void setWindSpeed(Speed windSpeed) {
-        this.windSpeed = windSpeed;
-    }
-
     public Bearing getWindBearing() {
         return windBearing;
-    }
-
-    public void setWindBearing(Bearing windBearing) {
-        this.windBearing = windBearing;
     }
 
     public Optional<Speed> getWindGust() {
@@ -176,24 +164,12 @@ public class ObservationRow {
         return temperature;
     }
 
-    public void setTemperature(Temperature temperature) {
-        this.temperature = temperature;
-    }
-
     public Length getVisibility() {
         return visibility;
     }
 
-    public void setVisibility(Length visibility) {
-        this.visibility = visibility;
-    }
-
     public Precipitation getPrecipitation() {
         return precipitation;
-    }
-
-    public void setPrecipitation(Precipitation precipitation) {
-        this.precipitation = precipitation;
     }
 
     public boolean isRime() {

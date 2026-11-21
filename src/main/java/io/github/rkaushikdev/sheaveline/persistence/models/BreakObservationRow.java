@@ -88,24 +88,12 @@ public class BreakObservationRow {
         return station;
     }
 
-    public void setStation(Length station) {
-        this.station = station;
-    }
-
     public int getInOneLay() {
         return inOneLay;
     }
 
-    public void setInOneLay(int inOneLay) {
-        this.inOneLay = inOneLay;
-    }
-
     public int getInSixLays() {
         return inSixLays;
-    }
-
-    public void setInSixLays(int inSixLays) {
-        this.inSixLays = inSixLays;
     }
 
     public int getValleyBreaks() {

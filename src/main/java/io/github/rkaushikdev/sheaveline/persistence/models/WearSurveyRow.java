@@ -103,16 +103,8 @@ public class WearSurveyRow {
         return taken;
     }
 
-    public void setTaken(LocalDate taken) {
-        this.taken = taken;
-    }
-
     public String getInspector() {
         return inspector;
-    }
-
-    public void setInspector(String inspector) {
-        this.inspector = inspector;
     }
 
     /**

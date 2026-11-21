@@ -115,24 +115,12 @@ public class StopRow {
         return kind;
     }
 
-    public void setKind(StopKind kind) {
-        this.kind = kind;
-    }
-
     public LocalDateTime getStopped() {
         return stopped;
     }
 
-    public void setStopped(LocalDateTime stopped) {
-        this.stopped = stopped;
-    }
-
     public String getStoppedBy() {
         return stoppedBy;
-    }
-
-    public void setStoppedBy(String stoppedBy) {
-        this.stoppedBy = stoppedBy;
     }
 
     public String getNote() {

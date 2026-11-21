@@ -109,39 +109,19 @@ public class AssignmentRow {
         return day;
     }
 
-    public void setDay(LocalDate day) {
-        this.day = day;
-    }
-
     public String getPerson() {
         return person;
-    }
-
-    public void setPerson(String person) {
-        this.person = person;
     }
 
     public Post getPost() {
         return post;
     }
 
-    public void setPost(Post post) {
-        this.post = post;
-    }
-
     public TimeOfDay getStarts() {
         return starts;
     }
 
-    public void setStarts(TimeOfDay starts) {
-        this.starts = starts;
-    }
-
     public TimeOfDay getEnds() {
         return ends;
-    }
-
-    public void setEnds(TimeOfDay ends) {
-        this.ends = ends;
     }
 }

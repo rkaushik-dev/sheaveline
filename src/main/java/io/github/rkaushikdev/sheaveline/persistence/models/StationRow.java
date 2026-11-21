@@ -54,10 +54,6 @@ public class StationRow {
         return elevation;
     }
 
-    public void setElevation(Length elevation) {
-        this.elevation = elevation;
-    }
-
     /**
      * The readings the station has sent, as last read. They go when the station goes.
      *

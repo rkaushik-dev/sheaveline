@@ -156,48 +156,24 @@ public class TerminalRow {
         return role;
     }
 
-    public void setRole(TerminalRole role) {
-        this.role = role;
-    }
-
     public String getLabel() {
         return label;
-    }
-
-    public void setLabel(String label) {
-        this.label = label;
     }
 
     public Length getStation() {
         return station;
     }
 
-    public void setStation(Length station) {
-        this.station = station;
-    }
-
     public Length getRopeElevation() {
         return ropeElevation;
-    }
-
-    public void setRopeElevation(Length ropeElevation) {
-        this.ropeElevation = ropeElevation;
     }
 
     public Length getBullwheelDiameter() {
         return bullwheelDiameter;
     }
 
-    public void setBullwheelDiameter(Length bullwheelDiameter) {
-        this.bullwheelDiameter = bullwheelDiameter;
-    }
-
     public String getBullwheelLiner() {
         return bullwheelLiner;
-    }
-
-    public void setBullwheelLiner(String bullwheelLiner) {
-        this.bullwheelLiner = bullwheelLiner;
     }
 
     public Optional<DriveType> getDriveType() {

@@ -67,8 +67,4 @@ public class DrillTeamRow {
     public String getTeam() {
         return team;
     }
-
-    public void setTeam(String team) {
-        this.team = team;
-    }
 }

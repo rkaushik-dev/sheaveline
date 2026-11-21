@@ -84,47 +84,23 @@ public class RopeSpecRow {
         return construction;
     }
 
-    public void setConstruction(RopeConstruction construction) {
-        this.construction = construction;
-    }
-
     public RopeGrade getGrade() {
         return grade;
-    }
-
-    public void setGrade(RopeGrade grade) {
-        this.grade = grade;
     }
 
     public LayDirection getLay() {
         return lay;
     }
 
-    public void setLay(LayDirection lay) {
-        this.lay = lay;
-    }
-
     public Length getNominalDiameter() {
         return nominalDiameter;
-    }
-
-    public void setNominalDiameter(Length nominalDiameter) {
-        this.nominalDiameter = nominalDiameter;
     }
 
     public Load getBreakingStrength() {
         return breakingStrength;
     }
 
-    public void setBreakingStrength(Load breakingStrength) {
-        this.breakingStrength = breakingStrength;
-    }
-
     public LoadPerFoot getWeight() {
         return weight;
-    }
-
-    public void setWeight(LoadPerFoot weight) {
-        this.weight = weight;
     }
 }

@@ -103,24 +103,12 @@ public class HoldRow {
         return reason;
     }
 
-    public void setReason(HoldReason reason) {
-        this.reason = reason;
-    }
-
     public LocalDateTime getStarted() {
         return started;
     }
 
-    public void setStarted(LocalDateTime started) {
-        this.started = started;
-    }
-
     public String getStartedBy() {
         return startedBy;
-    }
-
-    public void setStartedBy(String startedBy) {
-        this.startedBy = startedBy;
     }
 
     public String getDetail() {

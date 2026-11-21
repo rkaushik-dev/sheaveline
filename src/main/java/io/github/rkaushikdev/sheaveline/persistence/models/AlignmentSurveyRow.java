@@ -96,16 +96,8 @@ public class AlignmentSurveyRow {
         return taken;
     }
 
-    public void setTaken(LocalDate taken) {
-        this.taken = taken;
-    }
-
     public String getSurveyor() {
         return surveyor;
-    }
-
-    public void setSurveyor(String surveyor) {
-        this.surveyor = surveyor;
     }
 
     /**

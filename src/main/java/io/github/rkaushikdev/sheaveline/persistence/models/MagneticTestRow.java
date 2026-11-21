@@ -99,24 +99,12 @@ public class MagneticTestRow {
         return taken;
     }
 
-    public void setTaken(LocalDate taken) {
-        this.taken = taken;
-    }
-
     public String getContractor() {
         return contractor;
     }
 
-    public void setContractor(String contractor) {
-        this.contractor = contractor;
-    }
-
     public String getInstrument() {
         return instrument;
-    }
-
-    public void setInstrument(String instrument) {
-        this.instrument = instrument;
     }
 
     /**

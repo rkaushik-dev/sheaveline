@@ -107,40 +107,20 @@ public class SpliceRow {
         return station;
     }
 
-    public void setStation(Length station) {
-        this.station = station;
-    }
-
     public LocalDate getMade() {
         return made;
-    }
-
-    public void setMade(LocalDate made) {
-        this.made = made;
     }
 
     public String getMadeBy() {
         return madeBy;
     }
 
-    public void setMadeBy(String madeBy) {
-        this.madeBy = madeBy;
-    }
-
     public int getTucks() {
         return tucks;
     }
 
-    public void setTucks(int tucks) {
-        this.tucks = tucks;
-    }
-
     public Length getLength() {
         return length;
-    }
-
-    public void setLength(Length length) {
-        this.length = length;
     }
 
     /**

@@ -154,79 +154,39 @@ public class TowerRow {
         return number;
     }
 
-    public void setNumber(int number) {
-        this.number = number;
-    }
-
     public Length getStation() {
         return station;
-    }
-
-    public void setStation(Length station) {
-        this.station = station;
     }
 
     public Length getBaseElevation() {
         return baseElevation;
     }
 
-    public void setBaseElevation(Length baseElevation) {
-        this.baseElevation = baseElevation;
-    }
-
     public Length getHeight() {
         return height;
-    }
-
-    public void setHeight(Length height) {
-        this.height = height;
     }
 
     public AssemblyKind getUphillKind() {
         return uphillKind;
     }
 
-    public void setUphillKind(AssemblyKind uphillKind) {
-        this.uphillKind = uphillKind;
-    }
-
     public int getUphillSheaves() {
         return uphillSheaves;
-    }
-
-    public void setUphillSheaves(int uphillSheaves) {
-        this.uphillSheaves = uphillSheaves;
     }
 
     public Angle getUphillDeviation() {
         return uphillDeviation;
     }
 
-    public void setUphillDeviation(Angle uphillDeviation) {
-        this.uphillDeviation = uphillDeviation;
-    }
-
     public AssemblyKind getDownhillKind() {
         return downhillKind;
-    }
-
-    public void setDownhillKind(AssemblyKind downhillKind) {
-        this.downhillKind = downhillKind;
     }
 
     public int getDownhillSheaves() {
         return downhillSheaves;
     }
 
-    public void setDownhillSheaves(int downhillSheaves) {
-        this.downhillSheaves = downhillSheaves;
-    }
-
     public Angle getDownhillDeviation() {
         return downhillDeviation;
-    }
-
-    public void setDownhillDeviation(Angle downhillDeviation) {
-        this.downhillDeviation = downhillDeviation;
     }
 }

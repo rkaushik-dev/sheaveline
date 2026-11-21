@@ -109,32 +109,16 @@ public class MeterReadingRow {
         return day;
     }
 
-    public void setDay(LocalDate day) {
-        this.day = day;
-    }
-
     public BigDecimal getHours() {
         return hours;
-    }
-
-    public void setHours(BigDecimal hours) {
-        this.hours = hours;
     }
 
     public int getCycles() {
         return cycles;
     }
 
-    public void setCycles(int cycles) {
-        this.cycles = cycles;
-    }
-
     public String getReadBy() {
         return readBy;
-    }
-
-    public void setReadBy(String readBy) {
-        this.readBy = readBy;
     }
 
     /**

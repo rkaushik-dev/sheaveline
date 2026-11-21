@@ -140,48 +140,24 @@ public class IncidentRow {
         return at;
     }
 
-    public void setAt(LocalDateTime at) {
-        this.at = at;
-    }
-
     public IncidentKind getKind() {
         return kind;
-    }
-
-    public void setKind(IncidentKind kind) {
-        this.kind = kind;
     }
 
     public InjuryLevel getInjury() {
         return injury;
     }
 
-    public void setInjury(InjuryLevel injury) {
-        this.injury = injury;
-    }
-
     public int getPeople() {
         return people;
-    }
-
-    public void setPeople(int people) {
-        this.people = people;
     }
 
     public String getNarrative() {
         return narrative;
     }
 
-    public void setNarrative(String narrative) {
-        this.narrative = narrative;
-    }
-
     public String getReportedBy() {
         return reportedBy;
-    }
-
-    public void setReportedBy(String reportedBy) {
-        this.reportedBy = reportedBy;
     }
 
     /**

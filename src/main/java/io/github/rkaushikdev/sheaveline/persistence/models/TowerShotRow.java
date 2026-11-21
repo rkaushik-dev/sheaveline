@@ -92,31 +92,15 @@ public class TowerShotRow {
         return towerRef;
     }
 
-    public void setTowerRef(TowerRef towerRef) {
-        this.towerRef = towerRef;
-    }
-
     public Length getStation() {
         return station;
-    }
-
-    public void setStation(Length station) {
-        this.station = station;
     }
 
     public Length getCrossarmElevation() {
         return crossarmElevation;
     }
 
-    public void setCrossarmElevation(Length crossarmElevation) {
-        this.crossarmElevation = crossarmElevation;
-    }
-
     public Length getOffsetAtTop() {
         return offsetAtTop;
-    }
-
-    public void setOffsetAtTop(Length offsetAtTop) {
-        this.offsetAtTop = offsetAtTop;
     }
 }

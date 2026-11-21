@@ -76,23 +76,11 @@ public class DiameterReadingRow {
         return station;
     }
 
-    public void setStation(Length station) {
-        this.station = station;
-    }
-
     public Length getAcrossCrowns() {
         return acrossCrowns;
     }
 
-    public void setAcrossCrowns(Length acrossCrowns) {
-        this.acrossCrowns = acrossCrowns;
-    }
-
     public Length getAcrossValleys() {
         return acrossValleys;
-    }
-
-    public void setAcrossValleys(Length acrossValleys) {
-        this.acrossValleys = acrossValleys;
     }
 }

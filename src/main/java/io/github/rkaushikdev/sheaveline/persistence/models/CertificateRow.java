@@ -89,40 +89,20 @@ public class CertificateRow {
         return person;
     }
 
-    public void setPerson(String person) {
-        this.person = person;
-    }
-
     public Endorsement getEndorsement() {
         return endorsement;
-    }
-
-    public void setEndorsement(Endorsement endorsement) {
-        this.endorsement = endorsement;
     }
 
     public LocalDate getIssued() {
         return issued;
     }
 
-    public void setIssued(LocalDate issued) {
-        this.issued = issued;
-    }
-
     public LocalDate getExpires() {
         return expires;
     }
 
-    public void setExpires(LocalDate expires) {
-        this.expires = expires;
-    }
-
     public String getIssuedBy() {
         return issuedBy;
-    }
-
-    public void setIssuedBy(String issuedBy) {
-        this.issuedBy = issuedBy;
     }
 
     /**

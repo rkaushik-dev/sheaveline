@@ -96,32 +96,16 @@ public class TensionSystemRow {
         return kind;
     }
 
-    public void setKind(TensionKind kind) {
-        this.kind = kind;
-    }
-
     public Load getNominal() {
         return nominal;
-    }
-
-    public void setNominal(Load nominal) {
-        this.nominal = nominal;
     }
 
     public Length getTravel() {
         return travel;
     }
 
-    public void setTravel(Length travel) {
-        this.travel = travel;
-    }
-
     public Length getCarriage() {
         return carriage;
-    }
-
-    public void setCarriage(Length carriage) {
-        this.carriage = carriage;
     }
 
     /**

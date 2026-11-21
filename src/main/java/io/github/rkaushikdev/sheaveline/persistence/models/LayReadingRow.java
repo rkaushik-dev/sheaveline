@@ -71,15 +71,7 @@ public class LayReadingRow {
         return station;
     }
 
-    public void setStation(Length station) {
-        this.station = station;
-    }
-
     public Length getMeasured() {
         return measured;
-    }
-
-    public void setMeasured(Length measured) {
-        this.measured = measured;
     }
 }

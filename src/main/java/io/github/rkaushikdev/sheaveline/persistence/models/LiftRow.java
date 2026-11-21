@@ -105,40 +105,20 @@ public class LiftRow {
         return name;
     }
 
-    public void setName(String name) {
-        this.name = name;
-    }
-
     public LiftClass getLiftClass() {
         return liftClass;
-    }
-
-    public void setLiftClass(LiftClass liftClass) {
-        this.liftClass = liftClass;
     }
 
     public Bearing getBearing() {
         return bearing;
     }
 
-    public void setBearing(Bearing bearing) {
-        this.bearing = bearing;
-    }
-
     public Speed getDesignSpeed() {
         return designSpeed;
     }
 
-    public void setDesignSpeed(Speed designSpeed) {
-        this.designSpeed = designSpeed;
-    }
-
     public LocalDate getCommissioned() {
         return commissioned;
-    }
-
-    public void setCommissioned(LocalDate commissioned) {
-        this.commissioned = commissioned;
     }
 
     /**

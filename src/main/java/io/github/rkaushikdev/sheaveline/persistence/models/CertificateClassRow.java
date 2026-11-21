@@ -70,8 +70,4 @@ public class CertificateClassRow {
     public String getLiftClass() {
         return liftClass;
     }
-
-    public void setLiftClass(String liftClass) {
-        this.liftClass = liftClass;
-    }
 }

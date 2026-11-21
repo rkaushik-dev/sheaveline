@@ -95,15 +95,7 @@ public class SurveyShotRow {
         return station;
     }
 
-    public void setStation(Length station) {
-        this.station = station;
-    }
-
     public Length getElevation() {
         return elevation;
-    }
-
-    public void setElevation(Length elevation) {
-        this.elevation = elevation;
     }
 }

@@ -87,24 +87,12 @@ public class PreOpResultRow {
         return code;
     }
 
-    public void setCode(String code) {
-        this.code = code;
-    }
-
     public CheckOutcome getOutcome() {
         return outcome;
     }
 
-    public void setOutcome(CheckOutcome outcome) {
-        this.outcome = outcome;
-    }
-
     public String getBy() {
         return by;
-    }
-
-    public void setBy(String by) {
-        this.by = by;
     }
 
     public String getNote() {

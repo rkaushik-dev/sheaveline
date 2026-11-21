@@ -83,16 +83,8 @@ public class BrakeRow {
         return kind;
     }
 
-    public void setKind(BrakeKind kind) {
-        this.kind = kind;
-    }
-
     public Torque getTorque() {
         return torque;
-    }
-
-    public void setTorque(Torque torque) {
-        this.torque = torque;
     }
 
     public boolean isHydraulic() {

@@ -110,10 +110,6 @@ public class FilingRow {
         return kind;
     }
 
-    public void setKind(FilingKind kind) {
-        this.kind = kind;
-    }
-
     public LiftCode getLiftCode() {
         return liftCode;
     }
@@ -126,24 +122,12 @@ public class FilingRow {
         return filed;
     }
 
-    public void setFiled(LocalDateTime filed) {
-        this.filed = filed;
-    }
-
     public String getAbout() {
         return about;
     }
 
-    public void setAbout(String about) {
-        this.about = about;
-    }
-
     public String getFiledBy() {
         return filedBy;
-    }
-
-    public void setFiledBy(String filedBy) {
-        this.filedBy = filedBy;
     }
 
     public Optional<LocalDate> getAcknowledged() {

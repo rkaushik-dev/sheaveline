@@ -102,31 +102,15 @@ public class TensionReadingRow {
         return taken;
     }
 
-    public void setTaken(LocalDateTime taken) {
-        this.taken = taken;
-    }
-
     public Length getCarriage() {
         return carriage;
-    }
-
-    public void setCarriage(Length carriage) {
-        this.carriage = carriage;
     }
 
     public Load getMeasured() {
         return measured;
     }
 
-    public void setMeasured(Load measured) {
-        this.measured = measured;
-    }
-
     public Temperature getTemperature() {
         return temperature;
-    }
-
-    public void setTemperature(Temperature temperature) {
-        this.temperature = temperature;
     }
 }

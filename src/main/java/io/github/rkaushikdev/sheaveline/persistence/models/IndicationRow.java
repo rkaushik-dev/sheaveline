@@ -83,23 +83,11 @@ public class IndicationRow {
         return station;
     }
 
-    public void setStation(Length station) {
-        this.station = station;
-    }
-
     public IndicationKind getKind() {
         return kind;
     }
 
-    public void setKind(IndicationKind kind) {
-        this.kind = kind;
-    }
-
     public BigDecimal getMagnitude() {
         return magnitude;
-    }
-
-    public void setMagnitude(BigDecimal magnitude) {
-        this.magnitude = magnitude;
     }
 }

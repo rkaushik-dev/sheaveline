@@ -142,32 +142,16 @@ public class CarrierRow {
         return number;
     }
 
-    public void setNumber(int number) {
-        this.number = number;
-    }
-
     public CarrierType getKind() {
         return kind;
-    }
-
-    public void setKind(CarrierType kind) {
-        this.kind = kind;
     }
 
     public Load getTare() {
         return tare;
     }
 
-    public void setTare(Load tare) {
-        this.tare = tare;
-    }
-
     public Length getHanger() {
         return hanger;
-    }
-
-    public void setHanger(Length hanger) {
-        this.hanger = hanger;
     }
 
     public boolean isRestrainingBar() {

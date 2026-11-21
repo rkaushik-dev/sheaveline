@@ -120,40 +120,20 @@ public class DrillRow {
         return on;
     }
 
-    public void setOn(LocalDate on) {
-        this.on = on;
-    }
-
     public DrillKind getKind() {
         return kind;
-    }
-
-    public void setKind(DrillKind kind) {
-        this.kind = kind;
     }
 
     public int getCarriersWorked() {
         return carriersWorked;
     }
 
-    public void setCarriersWorked(int carriersWorked) {
-        this.carriersWorked = carriersWorked;
-    }
-
     public int getElapsedSeconds() {
         return elapsedSeconds;
     }
 
-    public void setElapsedSeconds(int elapsedSeconds) {
-        this.elapsedSeconds = elapsedSeconds;
-    }
-
     public String getObserver() {
         return observer;
-    }
-
-    public void setObserver(String observer) {
-        this.observer = observer;
     }
 
     /**

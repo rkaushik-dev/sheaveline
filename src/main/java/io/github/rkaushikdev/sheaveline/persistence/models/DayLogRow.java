@@ -132,10 +132,6 @@ public class DayLogRow {
         return day;
     }
 
-    public void setDay(LocalDate day) {
-        this.day = day;
-    }
-
     public TimeOfDay getFirstLoad() {
         return firstLoad;
     }

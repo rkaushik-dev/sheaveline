@@ -91,10 +91,6 @@ public class HaulRopeRow {
         return spec;
     }
 
-    public void setSpec(RopeSpecRow spec) {
-        this.spec = spec;
-    }
-
     /**
      * The code of the machine the rope is on.
      *
@@ -145,16 +141,8 @@ public class HaulRopeRow {
         return installed;
     }
 
-    public void setInstalled(LocalDate installed) {
-        this.installed = installed;
-    }
-
     public Length getLength() {
         return length;
-    }
-
-    public void setLength(Length length) {
-        this.length = length;
     }
 
     public int getSplices() {
