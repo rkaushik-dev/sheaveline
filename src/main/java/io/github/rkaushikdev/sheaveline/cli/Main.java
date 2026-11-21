@@ -69,11 +69,14 @@ import picocli.CommandLine.UnmatchedArgumentException;
             Main.Tables.class,
             Main.Check.class,
             Main.Settings.class,
+            Guide.class,
             PlantCommands.LiftGroup.class,
             RopeCommands.RopeGroup.class,
             DayCommands.DayGroup.class,
             CrewCommands.CrewGroup.class,
             EvacCommands.EvacGroup.class,
+            UpkeepCommands.UpkeepGroup.class,
+            BoardCommands.BoardGroup.class,
             ReportCommands.ReportGroup.class
         })
 public final class Main {
