@@ -62,4 +62,14 @@ public class StationRow {
     public List<ObservationRow> getObservations() {
         return Collections.unmodifiableList(observations);
     }
+
+    /**
+     * File a reading this station sent.
+     *
+     * @param observation the reading, which now points back at this station
+     */
+    public void addObservation(ObservationRow observation) {
+        observation.sentBy(this);
+        observations.add(observation);
+    }
 }

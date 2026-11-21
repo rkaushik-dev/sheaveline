@@ -118,6 +118,11 @@ public class ObservationRow {
         this.precipitation = precipitation;
     }
 
+    void sentBy(StationRow owner) {
+        this.station = owner;
+        this.stationName = owner.getName();
+    }
+
     /**
      * The generated key.
      *
