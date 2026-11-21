@@ -21,7 +21,7 @@ import java.util.Objects;
  * mark on it that does not move.
  *
  * <p>What the readings mean is not decided here. The survey carries numbers and the rule table in
- * {@code Verdict} decides what they cost, so there is one place to look when the board asks where a
+ * {@link Verdict} decides what they cost, so there is one place to look when the board asks where a
  * threshold came from.
  *
  * @param rope the rope walked
