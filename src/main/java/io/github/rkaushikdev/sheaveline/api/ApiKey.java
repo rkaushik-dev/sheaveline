@@ -33,8 +33,8 @@ public record ApiKey(
         Objects.requireNonNull(role, "role");
         Objects.requireNonNull(issued, "issued");
         Objects.requireNonNull(expires, "expires");
-        salt = salt.clone();
-        digest = digest.clone();
+        salt = Objects.requireNonNull(salt, "salt").clone();
+        digest = Objects.requireNonNull(digest, "digest").clone();
         if (keyId.strip().isEmpty()) {
             throw new AuthError("a key has an id");
         }

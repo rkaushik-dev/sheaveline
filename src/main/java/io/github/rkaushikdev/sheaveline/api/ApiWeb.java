@@ -19,7 +19,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * string by the words the department writes them in.
  */
 @Component
-public class ApiWeb implements WebMvcConfigurer {
+public final class ApiWeb implements WebMvcConfigurer {
 
     private final Gate gate;
     private final Work work;

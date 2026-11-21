@@ -55,7 +55,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
  * wants, a body or a query value, is a 422 in the same shape.
  */
 @RestControllerAdvice
-public class Errors {
+public final class Errors {
 
     /** The kind every unreadable request is answered with. */
     public static final String UNREADABLE_KIND = "RequestValidationError";
