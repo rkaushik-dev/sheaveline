@@ -69,6 +69,7 @@ import picocli.CommandLine.UnmatchedArgumentException;
             Main.Tables.class,
             Main.Check.class,
             Main.Settings.class,
+            PlantCommands.LiftGroup.class,
             DayCommands.DayGroup.class
         })
 public final class Main {
