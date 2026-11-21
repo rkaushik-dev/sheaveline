@@ -51,8 +51,24 @@ public final class TestDatabase {
      */
     public static <T> List<T> all(Session session, Class<T> type) {
         return session.entityManager()
-                .createQuery("select row from " + type.getSimpleName() + " row", type)
+                .createQuery("select found from " + type.getSimpleName() + " found", type)
                 .getResultList();
+    }
+
+    /**
+     * The one row of a kind the session can see.
+     *
+     * @param session the session
+     * @param type the row's class
+     * @param <T> the row's class
+     * @return the row
+     * @throws jakarta.persistence.NoResultException when there is none
+     * @throws jakarta.persistence.NonUniqueResultException when there is more than one
+     */
+    public static <T> T one(Session session, Class<T> type) {
+        return session.entityManager()
+                .createQuery("select found from " + type.getSimpleName() + " found", type)
+                .getSingleResult();
     }
 
     /**

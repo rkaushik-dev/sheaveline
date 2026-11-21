@@ -18,6 +18,12 @@ import io.github.rkaushikdev.sheaveline.util.Decimals;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 import java.math.BigDecimal;
+import java.sql.Types;
+import java.util.function.Function;
+import org.hibernate.type.descriptor.WrapperOptions;
+import org.hibernate.type.descriptor.java.AbstractClassJavaType;
+import org.hibernate.type.descriptor.jdbc.JdbcType;
+import org.hibernate.type.descriptor.jdbc.JdbcTypeIndicators;
 
 /**
  * Column types that store a measure as the integer it already is.
@@ -33,7 +39,8 @@ import java.math.BigDecimal;
  *
  * <p>Measures and identifiers convert wherever their type appears on a row. A decimal is only
  * stored in thousandths where a row asks for it by name, since a decimal is not one kind of thing.
- * An identifier used as a key names its converter too, because keys are not converted unasked.
+ * A key is never converted, so an identifier that is a row's key is described as a type of its own,
+ * a {@link Key}, stored the same way.
  */
 public final class ColumnTypes {
 
@@ -281,6 +288,98 @@ public final class ColumnTypes {
         @Override
         public BigDecimal convertToEntityAttribute(Integer value) {
             return value == null ? null : Decimals.divide(value, 1000);
+        }
+    }
+
+    /**
+     * An identifier that is a row's key, stored as text in its printed form. A row's key names its
+     * type with {@code @JavaType}, and every row pointing at it reads the same type back.
+     *
+     * @param <T> the identifier
+     */
+    public abstract static class Key<T> extends AbstractClassJavaType<T> {
+
+        private final transient Function<T, String> printed;
+        private final transient Function<String, T> parsed;
+
+        /**
+         * A key type.
+         *
+         * @param type the identifier
+         * @param printed how it is written
+         * @param parsed how it is read back
+         */
+        protected Key(Class<T> type, Function<T, String> printed, Function<String, T> parsed) {
+            super(type);
+            this.printed = printed;
+            this.parsed = parsed;
+        }
+
+        @Override
+        public JdbcType getRecommendedJdbcType(JdbcTypeIndicators indicators) {
+            return indicators.getJdbcType(Types.VARCHAR);
+        }
+
+        @Override
+        public String toString(T value) {
+            return printed.apply(value);
+        }
+
+        @Override
+        public T fromString(CharSequence text) {
+            return parsed.apply(text.toString());
+        }
+
+        @Override
+        public <X> X unwrap(T value, Class<X> type, WrapperOptions options) {
+            if (value == null) {
+                return null;
+            }
+            if (type.isInstance(value)) {
+                return type.cast(value);
+            }
+            if (type.isAssignableFrom(String.class)) {
+                return type.cast(printed.apply(value));
+            }
+            throw unknownUnwrap(type);
+        }
+
+        @Override
+        public <X> T wrap(X value, WrapperOptions options) {
+            if (value == null) {
+                return null;
+            }
+            if (getJavaTypeClass().isInstance(value)) {
+                return getJavaTypeClass().cast(value);
+            }
+            if (value instanceof String text) {
+                return parsed.apply(text);
+            }
+            throw unknownWrap(value.getClass());
+        }
+    }
+
+    /** A lift code as a key. */
+    public static final class LiftCodeKey extends Key<LiftCode> {
+        /** The key type. */
+        public LiftCodeKey() {
+            super(LiftCode.class, LiftCode::value, LiftCode::new);
+        }
+    }
+
+    /** A rope serial as a key. */
+    public static final class RopeSerialKey extends Key<RopeSerial> {
+        /** The key type. */
+        public RopeSerialKey() {
+            super(RopeSerial.class, RopeSerial::toString, RopeSerial::parse);
+        }
+    }
+
+    /** A board filing number as a key. */
+    public static final class FilingNumberKey extends Key<FilingNumber> {
+        /** The key type. */
+        public FilingNumberKey() {
+            super(FilingNumber.class, FilingNumber::toString, FilingNumber::parse);
         }
     }
 }
