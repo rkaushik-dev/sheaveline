@@ -4,6 +4,7 @@ import io.github.rkaushikdev.sheaveline.measures.Duration;
 import io.github.rkaushikdev.sheaveline.plant.LiftCode;
 import io.github.rkaushikdev.sheaveline.util.Decimals;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -17,6 +18,12 @@ import java.util.function.Predicate;
  * @param stops the stops, in the order they happened
  */
 public record StopLog(LiftCode lift, List<StopEvent> stops) {
+
+    /** How far back a stop looks for the ones before it. */
+    public static final Duration REPEAT_WINDOW = Duration.ofMinutes(60);
+
+    /** This many trips inside the window call the mechanic out. */
+    public static final int REPEAT_LIMIT = 3;
 
     /**
      * A log of one machine's stops.
@@ -128,6 +135,35 @@ public record StopLog(LiftCode lift, List<StopEvent> stops) {
         }
         long lost = chargeableDowntime().seconds();
         return Decimals.divide(scheduled.seconds() - lost, scheduled.seconds());
+    }
+
+    /**
+     * The trips in the hour up to and including one stop: the stops the machine made by itself.
+     *
+     * <p>One safety circuit trip is a tower switch that got a gust. Three inside an hour is a switch,
+     * a sheave or a rope position fault that is going to keep doing it, and the operator resetting
+     * it a fourth time is how a small fault becomes a deropement.
+     *
+     * @param stop one of the stops in the log
+     * @return the trips in the {@link #REPEAT_WINDOW} ending at that stop, oldest first, the stop
+     *     itself last when it is a trip
+     */
+    public List<StopEvent> repeatsUpTo(StopEvent stop) {
+        LocalDateTime from = stop.stopped().minusSeconds(REPEAT_WINDOW.seconds());
+        return where(one -> one.kind().isATrip()
+                && !one.stopped().isBefore(from)
+                && !one.stopped().isAfter(stop.stopped()));
+    }
+
+    /**
+     * Whether a stop is one too many, so a mechanic is called and the line walked before the
+     * machine runs again whatever kind of stop it was.
+     *
+     * @param stop one of the stops in the log
+     * @return true when it is the {@link #REPEAT_LIMIT}th or later trip inside the window
+     */
+    public boolean callsTheMechanic(StopEvent stop) {
+        return stop.kind().isATrip() && repeatsUpTo(stop).size() >= REPEAT_LIMIT;
     }
 
     /**

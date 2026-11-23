@@ -3,6 +3,7 @@ package io.github.rkaushikdev.sheaveline.persistence;
 import io.github.rkaushikdev.sheaveline.ops.DayLog;
 import io.github.rkaushikdev.sheaveline.ops.MeterHistory;
 import io.github.rkaushikdev.sheaveline.ops.MeterReading;
+import io.github.rkaushikdev.sheaveline.ops.OperationsError;
 import io.github.rkaushikdev.sheaveline.ops.StopEvent;
 import io.github.rkaushikdev.sheaveline.ops.StopLog;
 import io.github.rkaushikdev.sheaveline.persistence.mappers.OpsMapper;
@@ -184,11 +185,17 @@ public final class DayLogRepository extends Repository {
      * @param lineChecked whether the line was walked before it ran
      * @return the restarted stop
      * @throws StorageError when there is no such stop
-     * @throws io.github.rkaushikdev.sheaveline.ops.OperationsError when the stop may not restart yet
+     * @throws io.github.rkaushikdev.sheaveline.ops.OperationsError when the stop may not restart yet,
+     *     which includes a stop that is one too many inside the hour and has not had the line walked
      */
     public StopEvent restart(LiftCode code, LocalDateTime stopped, LocalDateTime when, String by, boolean lineChecked) {
         StopRow row = one(stopQuery(code, stopped), "there is no stop on " + code + " at " + CLOCK.format(stopped));
-        StopEvent restarted = OpsMapper.stopFromRow(row).restart(when, by, lineChecked);
+        StopEvent stop = OpsMapper.stopFromRow(row);
+        if (!lineChecked && stopsOn(code, stopped.toLocalDate()).callsTheMechanic(stop)) {
+            throw new OperationsError(StopLog.REPEAT_LIMIT + " trips on " + code + " inside the hour: the mechanic"
+                    + " walks the line before it runs again");
+        }
+        StopEvent restarted = stop.restart(when, by, lineChecked);
         row.setRestarted(restarted.restarted().orElse(null));
         row.setRestartedBy(restarted.restartedBy().orElse(null));
         row.setLineChecked(restarted.lineChecked());

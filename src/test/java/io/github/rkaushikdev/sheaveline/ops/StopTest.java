@@ -9,6 +9,7 @@ import io.github.rkaushikdev.sheaveline.measures.Duration;
 import io.github.rkaushikdev.sheaveline.plant.LiftCode;
 import io.github.rkaushikdev.sheaveline.util.Decimals;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -56,6 +57,40 @@ class StopTest {
 
     private static StopEvent between(StopKind kind, LocalDateTime stopped, LocalDateTime restarted) {
         return stop(kind, stopped, Optional.of(restarted), "", false, JOHN_PAUL);
+    }
+
+    @Test
+    void onlyTheStopsTheMachineMakesByItselfAreTrips() {
+        assertThat(Arrays.stream(StopKind.values()).filter(StopKind::isATrip))
+                .containsExactly(StopKind.GATE, StopKind.SAFETY_CIRCUIT, StopKind.ROPE_POSITION);
+        assertThat(StopKind.SAFETY_CIRCUIT.alwaysNeedsALineCheck()).isTrue();
+        assertThat(StopKind.GATE.alwaysNeedsALineCheck()).isFalse();
+        assertThat(StopKind.WEATHER.countsAgainstTheMachine()).isFalse();
+    }
+
+    @Test
+    void theThirdTripInsideTheHourCallsTheMechanic() {
+        StopEvent first = between(StopKind.GATE, at(10, 0), at(10, 2));
+        StopEvent second = between(StopKind.GATE, at(10, 25), at(10, 26));
+        StopEvent pole = between(StopKind.OPERATOR, at(10, 40), at(10, 41));
+        StopEvent third = stop(StopKind.GATE, at(10, 55), Optional.empty(), "", false, JOHN_PAUL);
+        StopLog log = StopLog.of(JOHN_PAUL, List.of(first, second, pole, third));
+        assertThat(log.repeatsUpTo(third)).containsExactly(first, second, third);
+        assertThat(log.callsTheMechanic(third)).isTrue();
+        assertThat(log.callsTheMechanic(second)).isFalse();
+        assertThat(log.callsTheMechanic(pole)).isFalse();
+    }
+
+    @Test
+    void tripsMoreThanAnHourApartDoNotAddUp() {
+        StopEvent first = between(StopKind.SAFETY_CIRCUIT, at(9, 0), at(9, 5));
+        StopEvent second = between(StopKind.GATE, at(9, 30), at(9, 31));
+        StopEvent third = between(StopKind.GATE, at(10, 1), at(10, 2));
+        StopLog log = StopLog.of(JOHN_PAUL, List.of(first, second, third));
+        assertThat(log.repeatsUpTo(third)).containsExactly(second, third);
+        assertThat(log.callsTheMechanic(third)).isFalse();
+        StopEvent fourth = between(StopKind.GATE, at(10, 29), at(10, 30));
+        assertThat(log.withStop(fourth).callsTheMechanic(fourth)).isTrue();
     }
 
     @Test

@@ -117,6 +117,25 @@ class CliDayTest {
     }
 
     @Test
+    void aThirdGateTripInsideTheHourCallsTheMechanicAndWantsTheLineWalked() {
+        started();
+        for (String[] trip : new String[][] {{"11:00", "11:02"}, {"11:20", "11:21"}}) {
+            run("day", "stop", "JP", trip[0], "--kind", "gate", "--by", "D Chin", "--on", ON);
+            assertThat(run("day", "restart", "JP", trip[0], trip[1], "--by", "D Chin", "--on", ON)
+                            .code())
+                    .isZero();
+        }
+        Shell.Reply third = run("day", "stop", "JP", "11:40", "--kind", "gate", "--by", "D Chin", "--on", ON);
+        assertThat(third.output()).contains("3 trips inside the hour: call the mechanic");
+        Shell.Reply refused = run("day", "restart", "JP", "11:40", "11:42", "--by", "D Chin", "--on", ON);
+        assertThat(refused.code()).isEqualTo(1);
+        assertThat(refused.output()).contains("mechanic walks the line");
+        Shell.Reply walked =
+                run("day", "restart", "JP", "11:40", "11:50", "--by", "R Skaggs", "--on", ON, "--line-checked");
+        assertThat(walked.code()).isZero();
+    }
+
+    @Test
     void aDeropementSaysTheLineGetsWalked() {
         started();
         Shell.Reply reply = run(

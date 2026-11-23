@@ -234,12 +234,17 @@ final class DayCommands {
         public int run(Console console) {
             LocalDate when = on.dayOf(console);
             StopEvent event = new StopEvent(LiftCode.parse(code), kind, moment(when, at), by, note);
+            List<StopEvent> repeats;
             try (UnitOfWork work = console.work()) {
                 work.dayLogs().stop(event);
+                repeats = work.dayLogs().stopsOn(event.lift(), when).repeatsUpTo(event);
                 work.commit();
             }
             console.say(event.toString());
-            if (event.kind().alwaysNeedsALineCheck()) {
+            if (repeats.size() >= StopLog.REPEAT_LIMIT) {
+                console.say(repeats.size() + " trips inside the hour: call the mechanic,"
+                        + " and the line is walked before it runs again");
+            } else if (event.kind().alwaysNeedsALineCheck()) {
                 console.say("the line is walked before this one runs again");
             }
             return Main.OK;
