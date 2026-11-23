@@ -92,6 +92,41 @@ class HoldTest {
     }
 
     @Test
+    void aGustUnderTheLimitButInsideTheMarginIsNotYetClear() {
+        WeatherHold near = weather().wind("W 20G43").held();
+        assertThat(near.mayRun()).isTrue();
+        assertThat(near.clears(HoldReason.GUST)).isFalse();
+        assertThat(WeatherHold.GUST.clears(near)).isFalse();
+        assertThat(weather().wind("W 20G40").held().clears(HoldReason.GUST)).isTrue();
+        assertThat(weather().wind("W 20G50").held().clears(HoldReason.GUST)).isFalse();
+    }
+
+    @Test
+    void theChillAndTheVisibilityReopenAtTheirOwnLimits() {
+        assertThat(weather().wind("W 2").degrees(-25).held().clears(HoldReason.CHILL))
+                .isTrue();
+        assertThat(weather().visibility(200).held().clears(HoldReason.VISIBILITY))
+                .isTrue();
+        assertThat(weather().visibility(199).held().clears(HoldReason.VISIBILITY))
+                .isFalse();
+    }
+
+    @Test
+    void aClassNotAskedAboutCrosswindIsAlwaysClearOfIt() {
+        WeatherHold tow = weather().wind(ACROSS + " 45").on(wildcat());
+        assertThat(WeatherHold.CROSSWIND.check(tow)).isEmpty();
+        assertThat(tow.clears(HoldReason.CROSSWIND)).isTrue();
+    }
+
+    @Test
+    void aGustHoldSaysTheFigureAndTheLimit() {
+        assertThat(WeatherHold.GUST.check(weather().wind("W 20G50").held()))
+                .contains(new Hold(HoldReason.GUST, "50 mph against a limit of 45 mph"));
+        assertThat(WeatherHold.GUST.reopensAt().apply(Speed.ofMilesPerHour(45))).isEqualTo(Speed.ofMilesPerHour(40));
+        assertThat(WeatherHold.GUST.reopensAt().apply(Speed.ofMilesPerHour(3))).isEqualTo(Speed.STOPPED);
+    }
+
+    @Test
     void aQuietDayHoldsNothing() {
         WeatherHold clear = held();
         assertThat(clear.mayRun()).isTrue();

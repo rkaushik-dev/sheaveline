@@ -24,21 +24,59 @@ import java.util.stream.Collectors;
  * anemometer says.
  *
  * <p>The limits are in the {@link Policy} table, and what is here is the six questions themselves,
- * which is the part that is actually logic. Adding a seventh question is one entry in the list of
- * rules.
+ * which is the part that is actually logic. The four that hold a figure against a limit are {@link
+ * Limit} rows, so the figure a hold reopens at sits beside the figure it holds at.
  *
  * @param lift the machine
  * @param observation the reading it is judged against
  */
 public record WeatherHold(Lift lift, Observation observation) {
 
+    /** The gust against the class's gust limit, reopening a margin under it. */
+    public static final Limit<Speed> GUST = new Limit<>(
+            HoldReason.GUST,
+            decision -> decision.observation().wind().peak(),
+            decision -> Optional.of(decision.policy().gust()),
+            false,
+            WeatherHold::lessTheMargin,
+            (peak, limit) -> peak.formatMph() + " against a limit of " + limit.formatMph());
+
+    /** The wind across the line against the class's crosswind limit, reopening a margin under it. */
+    public static final Limit<Speed> CROSSWIND = new Limit<>(
+            HoldReason.CROSSWIND,
+            WeatherHold::crosswind,
+            decision -> decision.policy().crosswind(),
+            false,
+            WeatherHold::lessTheMargin,
+            (across, limit) -> across.formatMph() + " across the line");
+
+    /** The wind chill against the class's floor. */
+    public static final Limit<Temperature> CHILL = new Limit<>(
+            HoldReason.CHILL,
+            decision -> decision.observation().chill(),
+            decision -> Optional.of(decision.policy().chillFloor()),
+            true,
+            floor -> floor,
+            (chill, floor) -> chill.formatF(0) + " at the summit");
+
+    /** What can be seen from the terminal against what the operator needs to see the line. */
+    public static final Limit<Length> VISIBILITY = new Limit<>(
+            HoldReason.VISIBILITY,
+            decision -> decision.observation().visibility(),
+            decision -> Optional.of(Policy.MINIMUM_VISIBILITY),
+            true,
+            wanted -> wanted,
+            (seen, wanted) -> Decimals.fixed(seen.feet(), 0) + " ft at the terminal");
+
+    private static final List<Limit<?>> LIMITS = List.of(GUST, CROSSWIND, CHILL, VISIBILITY);
+
     private static final List<Function<WeatherHold, Optional<Hold>>> RULES = List.of(
-            WeatherHold::gustHold,
-            WeatherHold::crosswindHold,
-            WeatherHold::chillHold,
+            GUST::check,
+            CROSSWIND::check,
+            CHILL::check,
             WeatherHold::icingHold,
             WeatherHold::lightningHold,
-            WeatherHold::visibilityHold);
+            VISIBILITY::check);
 
     /** A machine and a reading. */
     public WeatherHold {
@@ -130,6 +168,20 @@ public record WeatherHold(Lift lift, Observation observation) {
     }
 
     /**
+     * Whether a hold for one reason can come off on this reading. A wind hold waits for the wind to
+     * come back {@link Policy#WIND_REOPEN_MARGIN} inside the limit rather than to the limit itself.
+     *
+     * @param reason the reason the machine is held
+     * @return true when this reading no longer gives the reason and is back to the reopening figure
+     */
+    public boolean clears(HoldReason reason) {
+        if (reasons().contains(reason)) {
+            return false;
+        }
+        return LIMITS.stream().filter(one -> one.reason() == reason).allMatch(one -> one.clears(this));
+    }
+
+    /**
      * Whether a hold runs on a clock rather than on the next reading, as a lightning hold does.
      *
      * @return true when any reason does not clear on a reading
@@ -146,35 +198,6 @@ public record WeatherHold(Lift lift, Observation observation) {
         }
         return lift.code() + " held: "
                 + holds().stream().map(hold -> hold.reason().value()).collect(Collectors.joining(", "));
-    }
-
-    private Optional<Hold> gustHold() {
-        Speed peak = observation.wind().peak();
-        Speed limit = policy().gust();
-        if (peak.compareTo(limit) <= 0) {
-            return Optional.empty();
-        }
-        return Optional.of(new Hold(HoldReason.GUST, peak.formatMph() + " against a limit of " + limit.formatMph()));
-    }
-
-    private Optional<Hold> crosswindHold() {
-        Optional<Speed> limit = policy().crosswind();
-        if (limit.isEmpty()) {
-            return Optional.empty();
-        }
-        Speed across = crosswind();
-        if (across.compareTo(limit.get()) <= 0) {
-            return Optional.empty();
-        }
-        return Optional.of(new Hold(HoldReason.CROSSWIND, across.formatMph() + " across the line"));
-    }
-
-    private Optional<Hold> chillHold() {
-        Temperature chill = observation.chill();
-        if (chill.compareTo(policy().chillFloor()) >= 0) {
-            return Optional.empty();
-        }
-        return Optional.of(new Hold(HoldReason.CHILL, chill.formatF(0) + " at the summit"));
     }
 
     private Optional<Hold> icingHold() {
@@ -194,11 +217,7 @@ public record WeatherHold(Lift lift, Observation observation) {
                 "strike within " + Decimals.fixed(struck.get().feet(), 0) + " ft"));
     }
 
-    private Optional<Hold> visibilityHold() {
-        Length seen = observation.visibility();
-        if (seen.compareTo(Policy.MINIMUM_VISIBILITY) >= 0) {
-            return Optional.empty();
-        }
-        return Optional.of(new Hold(HoldReason.VISIBILITY, Decimals.fixed(seen.feet(), 0) + " ft at the terminal"));
+    private static Speed lessTheMargin(Speed limit) {
+        return Speed.ofMilsPerMinute(Math.max(0, limit.milsPerMinute() - Policy.WIND_REOPEN_MARGIN.milsPerMinute()));
     }
 }

@@ -171,11 +171,35 @@ class HoldLogTest {
     }
 
     @Test
-    void aWindHoldClearsAsSoonAsTheReadingIsInsideTheLimit() {
+    void aWindHoldClearsOnceTheReadingIsWellInsideTheLimit() {
         HoldRegister register = HoldRegister.of().call(decision(GALE), at(11), "K Ostler");
         HoldRecord gust = openFor(register, HoldReason.GUST);
         WeatherHold calm = decision("W 10");
         assertThat(register.mayClear(gust, at(11, 20), observed("W 10"), calm)).isTrue();
+    }
+
+    @Test
+    void aGustHoldStaysOnUntilTheGustIsFiveUnderTheLimit() {
+        HoldRegister register = HoldRegister.of().call(decision(GALE), at(11), "K Ostler");
+        HoldRecord gust = openFor(register, HoldReason.GUST);
+        WeatherHold justUnder = decision("W 20G42");
+        assertThat(justUnder.reasons()).doesNotContain(HoldReason.GUST);
+        assertThat(register.mayClear(gust, at(11, 20), observed("W 20G42"), justUnder))
+                .isFalse();
+        assertThat(register.mayClear(gust, at(11, 30), observed("W 20G40"), decision("W 20G40")))
+                .isTrue();
+    }
+
+    @Test
+    void aCrosswindHoldWaitsForTheMarginToo() {
+        HoldRegister register = HoldRegister.of().call(decision(ACROSS + " 36"), at(11), "K Ostler");
+        HoldRecord across = openFor(register, HoldReason.CROSSWIND);
+        WeatherHold easing = decision(ACROSS + " 29");
+        assertThat(easing.isHeld()).isFalse();
+        assertThat(register.mayClear(across, at(11, 20), observed(ACROSS + " 29"), easing))
+                .isFalse();
+        assertThat(register.mayClear(across, at(11, 30), observed(ACROSS + " 25"), decision(ACROSS + " 25")))
+                .isTrue();
     }
 
     @Test

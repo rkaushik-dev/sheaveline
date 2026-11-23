@@ -1,6 +1,7 @@
 package io.github.rkaushikdev.sheaveline.weather;
 
 import io.github.rkaushikdev.sheaveline.measures.Length;
+import io.github.rkaushikdev.sheaveline.measures.Speed;
 import io.github.rkaushikdev.sheaveline.plant.LiftClass;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -21,6 +22,12 @@ public final class Policy {
 
     /** Below this visibility at the terminal the operator cannot see the line. */
     public static final Length MINIMUM_VISIBILITY = Length.ofFeet(200);
+
+    /**
+     * How far inside its limit the wind has to come back before a wind hold comes off: five miles an
+     * hour, so a gusty afternoon does not open and close the machine every reading.
+     */
+    public static final Speed WIND_REOPEN_MARGIN = Speed.ofMilesPerHour(5);
 
     /** Every class's row, in class order. */
     public static final Map<LiftClass, ClassPolicy> TABLE = table();

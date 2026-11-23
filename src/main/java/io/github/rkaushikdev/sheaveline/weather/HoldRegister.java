@@ -129,8 +129,8 @@ public record HoldRegister(List<HoldRecord> records) {
      * Whether that one hold can come off, which depends on which hold it is.
      *
      * <p>A lightning hold comes off once the reading shows no strike and was taken at least {@link
-     * #LIGHTNING_WAIT} before the moment asked about. Any other hold comes off once the decision no
-     * longer gives its reason.
+     * #LIGHTNING_WAIT} before the moment asked about. Any other hold comes off once the decision says
+     * it clears, which for wind is a margin inside the limit rather than the limit.
      *
      * @param hold the hold
      * @param now the moment asked about
@@ -145,7 +145,7 @@ public record HoldRegister(List<HoldRecord> records) {
         if (hold.reason() == HoldReason.LIGHTNING) {
             return lightningServed(now, reading);
         }
-        return !decision.reasons().contains(hold.reason());
+        return decision.clears(hold.reason());
     }
 
     /**
