@@ -139,6 +139,51 @@ class SpliceTest {
     }
 
     @Test
+    void theClearRopeIsMeasuredFromTheEndOfOneSpliceToTheStartOfTheNext() {
+        SpliceRegister held = register(splice(0, true), splice(4000));
+        assertThat(held.clearRope())
+                .containsExactly(
+                        Length.ofFeet(4000).minus(LONG),
+                        ROPE.length().minus(Length.ofFeet(4000)).minus(LONG));
+    }
+
+    @Test
+    void twoSplicesFarEnoughApartByStationCanStillCrowdEachOther() {
+        Length limit = ROPE.diameter().scaled(3000);
+        Splice after = new Splice(limit.plus(Length.ofFeet(10)), MADE, "B Kettner", 5, LONG);
+        SpliceRegister held = register(splice(0, true), after);
+        assertThat(held.separations().get(0)).isGreaterThan(limit);
+        assertThat(held.tooClose()).hasSize(1);
+        assertThat(held.isAcceptable()).isFalse();
+        assertThat(held.problems()).containsExactly("217 ft clear after the splice at 0 ft, wants 344 ft");
+    }
+
+    @Test
+    void aRegisterThatPassesHasNoProblems() {
+        assertThat(register(splice(0, true), splice(4000)).problems()).isEmpty();
+    }
+
+    @Test
+    void everyProblemInTheRegisterIsSaidOnItsOwnLine() {
+        SpliceRegister held =
+                register(splice(0, true), splice(1800), splice(3600), splice(5400, Length.ofFeet(60)), splice(7200));
+        assertThat(held.problems())
+                .containsExactly("5 splices against a limit of 4", "splice at 5400 ft is 60 ft long, wants 138 ft");
+    }
+
+    @Test
+    void theRopeFileCondemnsOnceForEachProblem() {
+        SpliceRegister held = register(splice(0, true), splice(200), splice(4000, Length.ofFeet(60)));
+        RopeFile file = new RopeFile().withSplices(held);
+        assertThat(file.findings())
+                .extracting(Finding::source)
+                .hasSize(held.problems().size())
+                .containsOnly("splices");
+        assertThat(file.findings()).extracting(Finding::detail).containsExactlyElementsOf(held.problems());
+        assertThat(file.verdict()).isSameAs(WearVerdict.CONDEMNED);
+    }
+
+    @Test
     void theNearestSpliceToAStationIsFound() {
         SpliceRegister held = register(splice(0, true), splice(4000), splice(8000));
         assertThat(held.nearestTo(Length.ofFeet(3900)).station()).isEqualTo(Length.ofFeet(4000));

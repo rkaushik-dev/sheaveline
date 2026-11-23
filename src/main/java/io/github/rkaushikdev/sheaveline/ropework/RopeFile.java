@@ -214,9 +214,8 @@ public record RopeFile(
         wear.ifPresent(survey -> found.addAll(Verdict.wearFindings(survey)));
         breaks.ifPresent(survey -> found.addAll(Verdict.breakFindings(survey)));
         magnetic.ifPresent(test -> found.addAll(Verdict.testFindings(test)));
-        if (splices.isPresent() && !splices.get().isAcceptable()) {
-            found.add(new Finding("splices", WearVerdict.CONDEMNED, "splice register fails"));
-        }
+        splices.ifPresent(register -> register.problems()
+                .forEach(problem -> found.add(new Finding("splices", WearVerdict.CONDEMNED, problem))));
         if (tension.isPresent() && !tension.get().hasReserve()) {
             found.add(new Finding("tension", WearVerdict.MONITOR, "carriage has no travel in reserve"));
         }

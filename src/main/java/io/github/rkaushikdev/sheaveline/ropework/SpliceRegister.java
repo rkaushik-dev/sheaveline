@@ -121,13 +121,57 @@ public record SpliceRegister(HaulRope rope, List<Splice> splices) {
     }
 
     /**
-     * The gaps shorter than the minimum separation.
+     * The clear rope after each splice before the next one starts, round the loop.
      *
-     * @return those gaps, in loop order
+     * <p>The separation the standard asks for is between splices, not between the places they were
+     * marked at. A splice takes up twelve hundred diameters of rope, and the strands are disturbed
+     * over all of it, so the rope that counts as clear starts where the last tuck ends.
+     *
+     * @return one length after each splice, from its end to the start of the next, in loop order
+     */
+    public List<Length> clearRope() {
+        List<Length> gaps = separations();
+        List<Length> clear = new ArrayList<>();
+        for (int index = 0; index < splices.size(); index++) {
+            clear.add(gaps.get(index).minus(splices.get(index).length()));
+        }
+        return List.copyOf(clear);
+    }
+
+    /**
+     * The clear rope shorter than the minimum separation.
+     *
+     * @return those lengths, in loop order
      */
     public List<Length> tooClose() {
         Length limit = minimumSeparation();
-        return separations().stream().filter(gap -> gap.compareTo(limit) < 0).toList();
+        return clearRope().stream().filter(gap -> gap.compareTo(limit) < 0).toList();
+    }
+
+    /**
+     * Every way the register fails, each said the way the rope file prints it.
+     *
+     * @return one line for too many splices, one for each splice with too little clear rope after it,
+     *     and one for each short splice, empty when the register passes
+     */
+    public List<String> problems() {
+        List<String> found = new ArrayList<>();
+        if (count() > MAXIMUM_SPLICES) {
+            found.add(count() + " splices against a limit of " + MAXIMUM_SPLICES);
+        }
+        Length limit = minimumSeparation();
+        List<Length> clear = clearRope();
+        for (int index = 0; index < splices.size(); index++) {
+            if (clear.get(index).compareTo(limit) < 0) {
+                found.add(feet(clear.get(index)) + " ft clear after the splice at "
+                        + feet(splices.get(index).station()) + " ft, wants " + feet(limit) + " ft");
+            }
+        }
+        for (Splice splice : shortSplices()) {
+            found.add("splice at " + feet(splice.station()) + " ft is " + feet(splice.length()) + " ft long, wants "
+                    + feet(splice.minimumLength(rope.spec())) + " ft");
+        }
+        return List.copyOf(found);
     }
 
     /**
@@ -160,13 +204,7 @@ public record SpliceRegister(HaulRope rope, List<Splice> splices) {
      * @return true when the rope's splices are acceptable
      */
     public boolean isAcceptable() {
-        if (count() > MAXIMUM_SPLICES) {
-            return false;
-        }
-        if (!tooClose().isEmpty()) {
-            return false;
-        }
-        return shortSplices().isEmpty();
+        return problems().isEmpty();
     }
 
     /**
@@ -202,5 +240,9 @@ public record SpliceRegister(HaulRope rope, List<Splice> splices) {
      */
     public Length totalRemoved(Length original) {
         return original.minus(rope.length());
+    }
+
+    private static String feet(Length length) {
+        return Decimals.fixed(length.feet(), 0);
     }
 }

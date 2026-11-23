@@ -165,7 +165,7 @@ class RopefileTest {
     void aFailingSpliceRegisterReachesTheVerdict() {
         String text = page().splices(splicesAt(200)).made().text();
         assertThat(text).contains("standing                 condemned");
-        assertThat(text).contains("splices: splice register fails");
+        assertThat(text).contains("splices: 62 ft clear after the splice at 0 ft, wants 344 ft");
     }
 
     @Test
