@@ -24,13 +24,14 @@ public final class Verdict {
     private static final BigDecimal CONDEMNING_STRETCH = new BigDecimal("0.05");
     private static final BigDecimal WATCHED_STRETCH = new BigDecimal("0.02");
     private static final BigDecimal WATCHED_OVALITY = new BigDecimal("0.05");
+    private static final BigDecimal WATCHED_NECK = BigDecimal.valueOf(3);
 
     /** The wear rows, condemning rows first. */
     public static final List<WearRule> WEAR_RULES = List.of(
             new WearRule(
                     "diameter",
                     WearVerdict.CONDEMNED,
-                    Verdict::worstPercent,
+                    WearSurvey::smallestPercent,
                     value -> value.compareTo(CONDEMNING_PERCENT) < 0,
                     Verdict::ofNominal),
             new WearRule(
@@ -42,15 +43,21 @@ public final class Verdict {
             new WearRule(
                     "diameter",
                     WearVerdict.MONITOR,
-                    Verdict::worstPercent,
+                    WearSurvey::smallestPercent,
                     value -> value.compareTo(WATCHED_PERCENT) < 0,
                     Verdict::ofNominal),
             new WearRule(
                     "ovality",
                     WearVerdict.MONITOR,
-                    Verdict::ovalityFraction,
+                    WearSurvey::worstOvalityFraction,
                     value -> value.compareTo(WATCHED_OVALITY) > 0,
                     value -> percent(value) + "% out of round"),
+            new WearRule(
+                    "local reduction",
+                    WearVerdict.MONITOR,
+                    WearSurvey::neckPercent,
+                    value -> value.compareTo(WATCHED_NECK) > 0,
+                    value -> Decimals.quantize(value, 1) + "% under the rest of the rope"),
             new WearRule(
                     "lay length",
                     WearVerdict.MONITOR,
@@ -158,7 +165,7 @@ public final class Verdict {
      * @param findings the findings
      * @return condemned over monitor over serviceable, serviceable when there are none
      */
-    static WearVerdict worstOf(List<Finding> findings) {
+    public static WearVerdict worstOf(List<Finding> findings) {
         if (findings.stream().anyMatch(found -> found.verdict() == WearVerdict.CONDEMNED)) {
             return WearVerdict.CONDEMNED;
         }
@@ -166,14 +173,6 @@ public final class Verdict {
             return WearVerdict.MONITOR;
         }
         return WearVerdict.SERVICEABLE;
-    }
-
-    private static BigDecimal worstPercent(WearSurvey survey) {
-        return survey.percentOfNominal(survey.smallest());
-    }
-
-    private static BigDecimal ovalityFraction(WearSurvey survey) {
-        return survey.worstOvality().ovality().ratio(survey.nominal());
     }
 
     private static String ofNominal(BigDecimal value) {

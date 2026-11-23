@@ -66,9 +66,9 @@ class VerdictTest {
 
     @Test
     void theWearRulesAreRowsRatherThanAChain() {
-        assertThat(Verdict.WEAR_RULES).hasSize(5);
+        assertThat(Verdict.WEAR_RULES).hasSize(6);
         assertThat(Verdict.WEAR_RULES.stream().map(WearRule::name).distinct())
-                .containsExactlyInAnyOrder("diameter", "lay length", "ovality");
+                .containsExactlyInAnyOrder("diameter", "lay length", "ovality", "local reduction");
     }
 
     @Test
@@ -99,6 +99,34 @@ class VerdictTest {
         assertThat(Verdict.wearFindings(walked).stream().map(Finding::source).distinct())
                 .containsExactly("ovality");
         assertThat(Verdict.assessWear(walked)).isSameAs(WearVerdict.MONITOR);
+    }
+
+    @Test
+    void aNeckOnAnOtherwiseGoodRopeIsWatched() {
+        WearSurvey walked =
+                wear(reading(0, "1.392"), reading(1200, "1.390"), reading(2400, "1.346"), reading(3600, "1.388"));
+        assertThat(walked.smallestPercent()).isGreaterThan(BigDecimal.valueOf(97));
+        assertThat(walked.neckPercent()).isGreaterThan(BigDecimal.valueOf(3));
+        assertThat(Verdict.wearFindings(walked)).singleElement().satisfies(found -> {
+            assertThat(found.source()).isEqualTo("local reduction");
+            assertThat(found.verdict()).isSameAs(WearVerdict.MONITOR);
+            assertThat(found.detail()).isEqualTo("3.0% under the rest of the rope");
+        });
+    }
+
+    @Test
+    void aRopeWornEvenlyHasNoNeckHoweverThinItIs() {
+        WearSurvey walked = wear(reading(0, "1.300"), reading(1200, "1.298"), reading(2400, "1.296"));
+        assertThat(walked.neckPercent()).isLessThan(BigDecimal.ONE);
+        assertThat(Verdict.wearFindings(walked)).extracting(Finding::source).doesNotContain("local reduction");
+    }
+
+    @Test
+    void twoStationsAreNotEnoughToCallANeck() {
+        WearSurvey walked = wear(reading(0, "1.376"), reading(1200, "1.320"));
+        assertThat(walked.neckPercent()).isZero();
+        assertThat(walked.median()).isEqualTo(Length.ofInches("1.320"));
+        assertThat(Verdict.wearFindings(walked)).extracting(Finding::source).containsExactly("diameter");
     }
 
     @Test

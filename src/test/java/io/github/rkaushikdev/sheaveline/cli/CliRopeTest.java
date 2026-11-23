@@ -134,6 +134,16 @@ class CliRopeTest {
     }
 
     @Test
+    void aWalkPrintsEveryRowItFiredUnderTheVerdict() {
+        Shell.Reply reply =
+                walk("2025-01-15", "0 ft:1.376 in:1.376 in", "1200 ft:1.374 in:1.374 in", "2400 ft:1.330 in:1.330 in");
+        assertThat(reply.code()).isZero();
+        assertThat(reply.output())
+                .contains("verdict monitor", "  monitor local reduction: 3.2% under the rest of the rope");
+        assertThat(walked("2025-02-15", "1.376").output()).doesNotContain("  monitor", "  condemned");
+    }
+
+    @Test
     void aRecordedWalkComesBackOnTheList() {
         walk("2025-01-15", "0 ft:1.376 in:1.376 in");
         assertThat(run("rope", "walks", SERIAL).output()).contains("2025-01-15", "R Halvorsen");

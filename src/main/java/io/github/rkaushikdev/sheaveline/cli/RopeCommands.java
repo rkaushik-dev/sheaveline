@@ -13,6 +13,7 @@ import io.github.rkaushikdev.sheaveline.reports.Column;
 import io.github.rkaushikdev.sheaveline.reports.RopeFilePage;
 import io.github.rkaushikdev.sheaveline.reports.Table;
 import io.github.rkaushikdev.sheaveline.ropework.DiameterReading;
+import io.github.rkaushikdev.sheaveline.ropework.Finding;
 import io.github.rkaushikdev.sheaveline.ropework.Retirement;
 import io.github.rkaushikdev.sheaveline.ropework.Trend;
 import io.github.rkaushikdev.sheaveline.ropework.Verdict;
@@ -170,8 +171,10 @@ final class RopeCommands {
             console.say(survey.diameters().size() + " readings recorded against " + held.serial());
             console.say("smallest " + smallest.mean().formatInches(3)
                     + " at " + wholeFeet(smallest.station()) + " ft, "
-                    + Decimals.fixed(survey.percentOfNominal(smallest), 1) + "% of nominal");
-            console.say("verdict " + Verdict.assessWear(survey).value());
+                    + Decimals.fixed(survey.smallestPercent(), 1) + "% of nominal");
+            List<Finding> found = Verdict.wearFindings(survey);
+            console.say("verdict " + Verdict.worstOf(found).value());
+            found.forEach(one -> console.say("  " + one.verdict().value() + " " + one));
             return Main.OK;
         }
     }

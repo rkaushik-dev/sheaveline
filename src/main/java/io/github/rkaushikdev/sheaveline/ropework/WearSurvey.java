@@ -33,6 +33,9 @@ import java.util.Objects;
 public record WearSurvey(
         HaulRope rope, LocalDate taken, String inspector, List<DiameterReading> diameters, List<LayReading> lays) {
 
+    /** The fewest stations a walk needs before a neck can be told from the rest of the rope. */
+    public static final int NECK_READINGS = 3;
+
     /**
      * A survey that could have been taken.
      *
@@ -132,6 +135,56 @@ public record WearSurvey(
     }
 
     /**
+     * The smallest reading as a percentage of nominal, which is what the diameter rows read.
+     *
+     * @return the least mean diameter over nominal, times a hundred
+     */
+    public BigDecimal smallestPercent() {
+        return percentOfNominal(smallest());
+    }
+
+    /**
+     * How far the worst reading is out of round, as a fraction of nominal.
+     *
+     * @return the largest ovality over the nominal diameter
+     */
+    public BigDecimal worstOvalityFraction() {
+        return worstOvality().ovality().ratio(nominal());
+    }
+
+    /**
+     * The middle of the walk: the median mean diameter, which is what the rope reads away from
+     * wherever it is worst.
+     *
+     * @return the median of the mean diameters, the lower of the two middle readings on an even count
+     */
+    public Length median() {
+        List<Length> sorted =
+                diameters.stream().map(DiameterReading::mean).sorted().toList();
+        return sorted.get((sorted.size() - 1) / 2);
+    }
+
+    /**
+     * How far the smallest reading sits under the rest of the rope, as a percentage of the median.
+     *
+     * <p>A rope wears down along its whole length together, at the sheaves a little faster. A neck,
+     * where one station reads well under the stations either side of it, is a core that has given way
+     * at that place, and it can be there on a rope still well above the condemning diameter. It
+     * takes a walk of {@link #NECK_READINGS} stations or more to say what the rest of the rope reads.
+     *
+     * @return the percentage, zero on a shorter walk
+     */
+    public BigDecimal neckPercent() {
+        if (diameters.size() < NECK_READINGS) {
+            return BigDecimal.ZERO;
+        }
+        Length middle = median();
+        Length under = middle.minus(smallest().mean());
+        return Decimals.multiply(under.ratio(middle), 100);
+    }
+
+    /**
+     * Every reading under the condemning diameter.    /**
      * Every reading under the condemning diameter.
      *
      * @return those readings, in the order recorded
