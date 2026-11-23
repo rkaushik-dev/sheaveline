@@ -264,13 +264,14 @@ public final class Gather {
     public static MachineYear machineYear(UnitOfWork work, Lift lift, Season season, SeasonSummary summary) {
         ServiceAssessment reading = assess(work, lift, season.closes());
         List<WearSurvey> surveys = work.wearSurveys().forRope(lift.rope());
+        LiftTally tally = summary.tally(lift.code());
         return new MachineYear(
                 lift.code(),
                 lift.name(),
-                summary.daysOpen(lift.code()),
-                summary.scheduled(lift.code()),
-                summary.chargeable(lift.code()),
-                summary.availability(lift.code()),
+                tally.daysOpen(),
+                tally.scheduled(),
+                tally.chargeable(),
+                tally.availability(),
                 reading.status(),
                 reading.schedule().overdue(season.closes()).size(),
                 work.inspections().openDefects(lift.code()).size(),

@@ -218,8 +218,8 @@ class GatherTest {
             logged(johnPaul(), season.opens().plusDays(offset));
         }
         SeasonSummary summary = Gather.seasonSummary(work, season);
-        assertThat(summary.daysOpen(JOHN_PAUL)).isEqualTo(3);
-        assertThat(summary.scheduled(JOHN_PAUL).hours()).isEqualByComparingTo("22.5");
+        assertThat(summary.tally(JOHN_PAUL).daysOpen()).isEqualTo(3);
+        assertThat(summary.tally(JOHN_PAUL).scheduled().hours()).isEqualByComparingTo("22.5");
     }
 
     @Test
@@ -227,7 +227,8 @@ class GatherTest {
         Season season = HillCalendar.theSeason();
         logged(johnPaul(), season.opens());
         logged(johnPaul(), season.closes().plusDays(30));
-        assertThat(Gather.seasonSummary(work, season).daysOpen(JOHN_PAUL)).isEqualTo(1);
+        assertThat(Gather.seasonSummary(work, season).tally(JOHN_PAUL).daysOpen())
+                .isEqualTo(1);
     }
 
     @Test
@@ -237,9 +238,9 @@ class GatherTest {
         logged(johnPaul(), day);
         work.dayLogs().stop(stopped(day, StopKind.GATE, 11, 30));
         SeasonSummary summary = Gather.seasonSummary(work, season);
-        assertThat(summary.downtime(JOHN_PAUL).minutes()).isEqualByComparingTo("30");
-        assertThat(summary.chargeable(JOHN_PAUL).minutes()).isEqualByComparingTo("30");
-        assertThat(summary.stopsByKind(JOHN_PAUL)).isEqualTo(Map.of(StopKind.GATE, 1));
+        assertThat(summary.tally(JOHN_PAUL).downtime().minutes()).isEqualByComparingTo("30");
+        assertThat(summary.tally(JOHN_PAUL).chargeable().minutes()).isEqualByComparingTo("30");
+        assertThat(summary.tally(JOHN_PAUL).stops()).isEqualTo(Map.of(StopKind.GATE, 1));
     }
 
     @Test
@@ -249,8 +250,8 @@ class GatherTest {
         logged(johnPaul(), day);
         work.dayLogs().stop(stopped(day, StopKind.POWER, 12, 0));
         SeasonSummary summary = Gather.seasonSummary(work, season);
-        assertThat(summary.downtime(JOHN_PAUL).minutes()).isEqualByComparingTo("60");
-        assertThat(summary.chargeable(JOHN_PAUL).isZero()).isTrue();
-        assertThat(summary.availability(JOHN_PAUL)).isEqualByComparingTo("1");
+        assertThat(summary.tally(JOHN_PAUL).downtime().minutes()).isEqualByComparingTo("60");
+        assertThat(summary.tally(JOHN_PAUL).chargeable().isZero()).isTrue();
+        assertThat(summary.tally(JOHN_PAUL).availability()).isEqualByComparingTo("1");
     }
 }

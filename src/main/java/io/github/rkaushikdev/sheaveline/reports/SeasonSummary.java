@@ -1,9 +1,9 @@
 package io.github.rkaushikdev.sheaveline.reports;
 
-import io.github.rkaushikdev.sheaveline.measures.Duration;
 import io.github.rkaushikdev.sheaveline.ops.StopKind;
 import io.github.rkaushikdev.sheaveline.plant.LiftCode;
 import io.github.rkaushikdev.sheaveline.schedule.Season;
+import io.github.rkaushikdev.sheaveline.util.Decimals;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -13,7 +13,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.TreeMap;
 
 /**
@@ -23,9 +22,11 @@ import java.util.TreeMap;
  * run, how much of that was it stopped, and whose fault was the stopping. The board compares this
  * year against last, so the arithmetic has to be the same arithmetic every year.
  *
- * <p>The records are tallied once, on the way in, and every question reads the tally. A season of
- * a hundred and fifty days across six machines is nine hundred rows, and the page asks eight
- * questions a machine plus one a stop kind; walking the records for each of them showed.
+ * <p>The records are tallied once, on the way in, and every question about one machine is asked of
+ * its {@link #tally(LiftCode) tally}. A season of a hundred and fifty days across six machines is
+ * nine hundred rows, and walking the records for each question showed. The summary used to repeat
+ * every tally figure as a method of its own as well, which meant two places to add each new figure
+ * the board asked for, so it hands out the tally instead.
  *
  * @param season the season
  * @param records every day record, by day and then by machine code
@@ -79,106 +80,6 @@ public record SeasonSummary(Season season, List<DayRecord> records, Map<LiftCode
     public LiftTally tally(LiftCode lift) {
         LiftTally found = tallies.get(lift);
         return found != null ? found : LiftTally.of(lift, List.of());
-    }
-
-    /**
-     * One machine's records.
-     *
-     * @param lift the machine
-     * @return its records by day
-     */
-    public List<DayRecord> forLift(LiftCode lift) {
-        return tally(lift).days();
-    }
-
-    /**
-     * The days a machine opened.
-     *
-     * @param lift the machine
-     * @return the count
-     */
-    public int daysOpen(LiftCode lift) {
-        return tally(lift).daysOpen();
-    }
-
-    /**
-     * The days a machine did not open.
-     *
-     * @param lift the machine
-     * @return the count
-     */
-    public int daysShut(LiftCode lift) {
-        return tally(lift).daysShut();
-    }
-
-    /**
-     * The time a machine was meant to run.
-     *
-     * @param lift the machine
-     * @return the total
-     */
-    public Duration scheduled(LiftCode lift) {
-        return tally(lift).scheduled();
-    }
-
-    /**
-     * The time a machine ran.
-     *
-     * @param lift the machine
-     * @return the total
-     */
-    public Duration running(LiftCode lift) {
-        return tally(lift).running();
-    }
-
-    /**
-     * The time a machine was stopped, whatever stopped it.
-     *
-     * @param lift the machine
-     * @return the total
-     */
-    public Duration downtime(LiftCode lift) {
-        return tally(lift).downtime();
-    }
-
-    /**
-     * The stopped time charged to a machine.
-     *
-     * @param lift the machine
-     * @return the total
-     */
-    public Duration chargeable(LiftCode lift) {
-        return tally(lift).chargeable();
-    }
-
-    /**
-     * The share of a machine's scheduled time it was not charged for.
-     *
-     * @param lift the machine
-     * @return a fraction, zero when nothing was scheduled
-     */
-    public BigDecimal availability(LiftCode lift) {
-        return tally(lift).availability();
-    }
-
-    /**
-     * The day that cost a machine the most.
-     *
-     * @param lift the machine
-     * @return the day, or empty for a machine with no records
-     */
-    public Optional<DayRecord> worstDay(LiftCode lift) {
-        return tally(lift).worstDay();
-    }
-
-    /**
-     * How many times a machine stopped for each reason.
-     *
-     * @param lift the machine
-     * @return a copy of the counts, which the caller may change without changing the tally
-     */
-    public Map<StopKind, Integer> stopsByKind(LiftCode lift) {
-        return new LinkedHashMap<>(tally(lift).stops());
     }
 
     /**
@@ -249,6 +150,25 @@ public record SeasonSummary(Season season, List<DayRecord> records, Map<LiftCode
                         new Column("charged", 10, Align.RIGHT),
                         new Column("available", 10, Align.RIGHT)),
                 worst));
+
+        page.section("stoppages");
+        page.table(Table.of(
+                List.of(
+                        new Column("lift", 5),
+                        new Column("charged stops", 14, Align.RIGHT),
+                        new Column("hours between", 14, Align.RIGHT),
+                        new Column("minutes to restart", 19, Align.RIGHT)),
+                tallied.stream()
+                        .map(one -> List.of(
+                                one.lift().toString(),
+                                one.chargeableStops(),
+                                one.meanTimeBetweenStops()
+                                        .map(between -> Figures.hours(between, 1))
+                                        .orElse("none"),
+                                one.meanTimeToRestart()
+                                        .map(restart -> Decimals.fixed(Decimals.divide(restart.seconds(), 60), 1))
+                                        .orElse("none")))
+                        .toList()));
 
         page.section("stops by kind");
         List<StopKind> kinds = tallied.stream()

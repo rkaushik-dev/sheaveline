@@ -88,6 +88,40 @@ public record LiftTally(
     }
 
     /**
+     * How many stops over the season counted against the machine.
+     *
+     * @return the stops that were the machine's fault, power cuts, weather and planned stops left out
+     */
+    public int chargeableStops() {
+        return stops.entrySet().stream()
+                .filter(one -> one.getKey().countsAgainstTheMachine())
+                .mapToInt(Map.Entry::getValue)
+                .sum();
+    }
+
+    /**
+     * The mean running time between stops the machine was to blame for, which is the reliability
+     * figure the board compares year on year.
+     *
+     * @return the running time over the chargeable stops, or empty for a machine that never had one
+     */
+    public Optional<Duration> meanTimeBetweenStops() {
+        int count = chargeableStops();
+        return count == 0 ? Optional.empty() : Optional.of(Duration.ofSeconds(running.seconds() / count));
+    }
+
+    /**
+     * The mean time a chargeable stop kept the machine down.
+     *
+     * @return the chargeable downtime over the chargeable stops, or empty for a machine that never had
+     *     one
+     */
+    public Optional<Duration> meanTimeToRestart() {
+        int count = chargeableStops();
+        return count == 0 ? Optional.empty() : Optional.of(Duration.ofSeconds(chargeable.seconds() / count));
+    }
+
+    /**
      * The day that cost the most charged time; of days that cost the same, the earliest tallied.
      *
      * @return the day, or empty for a machine with no days

@@ -3,6 +3,7 @@ package io.github.rkaushikdev.sheaveline.reports;
 import static io.github.rkaushikdev.sheaveline.Hill.JOHN_PAUL;
 import static io.github.rkaushikdev.sheaveline.Hill.STRAWBERRY;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 import io.github.rkaushikdev.sheaveline.HillCalendar;
@@ -72,8 +73,8 @@ class SeasonReportTest {
                 day().on(LocalDate.of(2025, 1, 15)),
                 day().on(LocalDate.of(2025, 1, 16)).shut().scheduledHours(0),
                 day().on(LocalDate.of(2025, 1, 17)));
-        assertThat(held.daysOpen(JOHN_PAUL)).isEqualTo(2);
-        assertThat(held.daysShut(JOHN_PAUL)).isEqualTo(1);
+        assertThat(held.tally(JOHN_PAUL).daysOpen()).isEqualTo(2);
+        assertThat(held.tally(JOHN_PAUL).daysShut()).isEqualTo(1);
     }
 
     @Test
@@ -81,25 +82,25 @@ class SeasonReportTest {
         SeasonSummary held = summary(
                 day().on(LocalDate.of(2025, 1, 15)).charged(30),
                 day().on(LocalDate.of(2025, 1, 16)).charged(90));
-        assertThat(held.scheduled(JOHN_PAUL)).isEqualTo(Duration.ofHours(14));
-        assertThat(held.chargeable(JOHN_PAUL)).isEqualTo(Duration.ofHours(2));
-        assertThat(held.downtime(JOHN_PAUL)).isEqualTo(Duration.ofHours(2));
-        assertThat(held.running(JOHN_PAUL)).isEqualTo(Duration.ofHours(12));
+        assertThat(held.tally(JOHN_PAUL).scheduled()).isEqualTo(Duration.ofHours(14));
+        assertThat(held.tally(JOHN_PAUL).chargeable()).isEqualTo(Duration.ofHours(2));
+        assertThat(held.tally(JOHN_PAUL).downtime()).isEqualTo(Duration.ofHours(2));
+        assertThat(held.tally(JOHN_PAUL).running()).isEqualTo(Duration.ofHours(12));
     }
 
     @Test
     void availabilityChargesOnlyTheMachinesOwnStops() {
         SeasonSummary held =
                 summary(day().on(LocalDate.of(2025, 1, 15)).down(120).charged(30));
-        assertThat(held.downtime(JOHN_PAUL)).isEqualTo(Duration.ofHours(2));
-        assertThat(held.chargeable(JOHN_PAUL)).isEqualTo(Duration.ofMinutes(30));
-        assertThat(Decimals.quantize(held.availability(JOHN_PAUL), 3)).isEqualByComparingTo("0.929");
+        assertThat(held.tally(JOHN_PAUL).downtime()).isEqualTo(Duration.ofHours(2));
+        assertThat(held.tally(JOHN_PAUL).chargeable()).isEqualTo(Duration.ofMinutes(30));
+        assertThat(Decimals.quantize(held.tally(JOHN_PAUL).availability(), 3)).isEqualByComparingTo("0.929");
     }
 
     @Test
     void aMachineWithNothingScheduledHasNoAvailability() {
         SeasonSummary held = summary(day().shut().scheduledHours(0));
-        assertThat(held.availability(JOHN_PAUL)).isEqualByComparingTo("0");
+        assertThat(held.tally(JOHN_PAUL).availability()).isEqualByComparingTo("0");
     }
 
     @Test
@@ -108,9 +109,9 @@ class SeasonReportTest {
                 day().on(LocalDate.of(2025, 1, 15)).charged(30),
                 day().on(LocalDate.of(2025, 1, 16)).charged(180),
                 day().on(LocalDate.of(2025, 1, 17)).charged(45));
-        assertThat(held.worstDay(JOHN_PAUL)).isPresent();
-        assertThat(held.worstDay(JOHN_PAUL).orElseThrow().day()).isEqualTo(LocalDate.of(2025, 1, 16));
-        assertThat(held.worstDay(STRAWBERRY)).isEmpty();
+        assertThat(held.tally(JOHN_PAUL).worstDay()).isPresent();
+        assertThat(held.tally(JOHN_PAUL).worstDay().orElseThrow().day()).isEqualTo(LocalDate.of(2025, 1, 16));
+        assertThat(held.tally(STRAWBERRY).worstDay()).isEmpty();
     }
 
     @Test
@@ -118,10 +119,43 @@ class SeasonReportTest {
         SeasonSummary held = summary(
                 day().stops(StopKind.GATE, StopKind.GATE, StopKind.WEATHER),
                 day().on(LocalDate.of(2025, 1, 16)).stops(StopKind.GATE));
-        Map<StopKind, Integer> counted = held.stopsByKind(JOHN_PAUL);
+        Map<StopKind, Integer> counted = held.tally(JOHN_PAUL).stops();
         assertThat(counted.get(StopKind.GATE)).isEqualTo(3);
         assertThat(counted.get(StopKind.WEATHER)).isEqualTo(1);
-        assertThat(held.stopsByKind(STRAWBERRY)).isEmpty();
+        assertThat(held.tally(STRAWBERRY).stops()).isEmpty();
+    }
+
+    @Test
+    void theMeanTimesBetweenStopsCountOnlyTheMachinesOwnStops() {
+        SeasonSummary held = summary(
+                day().on(LocalDate.of(2025, 1, 15))
+                        .scheduledHours(7)
+                        .charged(30)
+                        .stops(StopKind.GATE, StopKind.WEATHER),
+                day().on(LocalDate.of(2025, 1, 16))
+                        .scheduledHours(7)
+                        .charged(10)
+                        .stops(StopKind.SAFETY_CIRCUIT));
+        LiftTally one = held.tally(JOHN_PAUL);
+        assertThat(one.chargeableStops()).isEqualTo(2);
+        assertThat(one.meanTimeBetweenStops()).contains(Duration.ofMinutes((14 * 60 - 40) / 2));
+        assertThat(one.meanTimeToRestart()).contains(Duration.ofMinutes(20));
+        LiftTally quiet = summary(day().stops(StopKind.POWER)).tally(JOHN_PAUL);
+        assertThat(quiet.chargeableStops()).isZero();
+        assertThat(quiet.meanTimeBetweenStops()).isEmpty();
+        assertThat(quiet.meanTimeToRestart()).isEmpty();
+    }
+
+    @Test
+    void thePagePrintsTheStoppagesAMachine() {
+        String text = summary(
+                        day().lift(JOHN_PAUL).scheduledHours(7).charged(30).stops(StopKind.GATE),
+                        day().lift(STRAWBERRY).stops(StopKind.WEATHER))
+                .text();
+        assertThat(text).contains("stoppages", "charged stops", "minutes to restart");
+        assertThat(text.lines().filter(line -> line.startsWith("SB ")).toList())
+                .anySatisfy(line -> assertThat(line).contains("none"));
+        assertThat(text.lines()).allMatch(line -> line.length() <= Forms.PAGE_WIDTH);
     }
 
     @Test
@@ -206,19 +240,19 @@ class SeasonReportTest {
     }
 
     @Test
-    void theTallyHoldsTheSameAnswersTheSummaryGives() {
+    void theTallyHoldsEveryFigureTheSummaryIsAskedForAMachine() {
         SeasonSummary held = summary(
                 day().on(LocalDate.of(2025, 1, 15)).scheduledHours(7).charged(30),
                 day().on(LocalDate.of(2025, 1, 16)).scheduledHours(8).shut());
         LiftTally one = held.tally(JOHN_PAUL);
-        assertThat(one.daysOpen()).isEqualTo(held.daysOpen(JOHN_PAUL));
-        assertThat(one.daysShut()).isEqualTo(held.daysShut(JOHN_PAUL));
-        assertThat(one.scheduled()).isEqualTo(held.scheduled(JOHN_PAUL));
-        assertThat(one.running()).isEqualTo(held.running(JOHN_PAUL));
-        assertThat(one.downtime()).isEqualTo(held.downtime(JOHN_PAUL));
-        assertThat(one.chargeable()).isEqualTo(held.chargeable(JOHN_PAUL));
-        assertThat(one.availability()).isEqualTo(held.availability(JOHN_PAUL));
-        assertThat(one.worstDay()).isEqualTo(held.worstDay(JOHN_PAUL));
+        assertThat(one.daysOpen()).isEqualTo(1);
+        assertThat(one.daysShut()).isEqualTo(1);
+        assertThat(one.scheduled()).isEqualTo(Duration.ofHours(15));
+        assertThat(one.chargeable()).isEqualTo(Duration.ofMinutes(30));
+        assertThat(one.running()).isEqualTo(Duration.ofHours(15).minus(Duration.ofMinutes(30)));
+        assertThat(one.downtime()).isEqualTo(Duration.ofMinutes(30));
+        assertThat(Decimals.quantize(one.availability(), 3)).isEqualByComparingTo("0.967");
+        assertThat(one.worstDay().orElseThrow().day()).isEqualTo(LocalDate.of(2025, 1, 15));
     }
 
     @Test
@@ -233,13 +267,13 @@ class SeasonReportTest {
     }
 
     @Test
-    void theStopCountsAreAddedUpOnceAndHandedOutAsCopies() {
+    void theStopCountsAreAddedUpOnceAndCannotBeChangedFromOutside() {
         SeasonSummary held = summary(
                 day().stops(StopKind.WEATHER, StopKind.WEATHER),
                 day().on(LocalDate.of(2025, 1, 16)).stops(StopKind.WEATHER, StopKind.POWER));
-        assertThat(held.tally(JOHN_PAUL).stops()).isEqualTo(Map.of(StopKind.WEATHER, 3, StopKind.POWER, 1));
-        Map<StopKind, Integer> handed = held.stopsByKind(JOHN_PAUL);
-        handed.put(StopKind.WEATHER, 99);
+        Map<StopKind, Integer> handed = held.tally(JOHN_PAUL).stops();
+        assertThat(handed).isEqualTo(Map.of(StopKind.WEATHER, 3, StopKind.POWER, 1));
+        assertThatThrownBy(() -> handed.put(StopKind.WEATHER, 99)).isInstanceOf(UnsupportedOperationException.class);
         assertThat(held.tally(JOHN_PAUL).stops().get(StopKind.WEATHER)).isEqualTo(3);
     }
 
