@@ -38,6 +38,12 @@ public record Observation(
     /** A reading older than this is no longer evidence about now. */
     public static final Duration STALE_AFTER = Duration.ofMinutes(20);
 
+    /** Under this visibility the cloud is down on the station: five eighths of a mile. */
+    public static final Length FOG_VISIBILITY = Length.ofFeet(3300);
+
+    /** Below this the fog is ice crystals rather than water that has not frozen yet. */
+    public static final Temperature SUPERCOOLED_FLOOR = Temperature.ofDegreesF(14);
+
     /** The visibility a station reports when nothing limits it. */
     public static final Length UNLIMITED_VISIBILITY = Length.ofFeet(30000);
 
@@ -128,12 +134,30 @@ public record Observation(
     }
 
     /**
-     * Rime on the towers, or freezing rain that will put it there.
+     * Rime on the towers, or freezing rain or freezing fog that will put it there.
      *
-     * @return true for either
+     * @return true for any of them
      */
     public boolean icing() {
-        return rime || precipitation.buildsIce();
+        return rime || precipitation.buildsIce() || freezingFog();
+    }
+
+    /**
+     * Fog cold enough to rime the grips as the carriers come through it.
+     *
+     * <p>Cloud sitting on the summit in the teens and twenties is made of droplets colder than
+     * freezing that have not frozen yet, and they freeze on the first thing they touch. Colder than
+     * about fourteen degrees it is mostly ice crystals already, which blow off rather than build up.
+     * Nobody reports it as precipitation because nothing is falling, so it is read off the visibility
+     * and the temperature.
+     *
+     * @return true when the visibility is under {@link #FOG_VISIBILITY} and the temperature is from
+     *     {@link #SUPERCOOLED_FLOOR} up to freezing
+     */
+    public boolean freezingFog() {
+        return visibility.compareTo(FOG_VISIBILITY) < 0
+                && temperature.compareTo(Temperature.FREEZING) <= 0
+                && temperature.compareTo(SUPERCOOLED_FLOOR) >= 0;
     }
 
     /** Such as {@code summit W 18, 8 F}. */

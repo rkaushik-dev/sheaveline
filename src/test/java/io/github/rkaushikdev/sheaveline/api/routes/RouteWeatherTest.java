@@ -223,6 +223,15 @@ class RouteWeatherTest {
     }
 
     @Test
+    void freezingFogAtTheSummitIsCalledIcing() {
+        record(reading().with("visibility", "1500 ft").with("temperature", "26 F"));
+        JsonNode body = hold("JP");
+        assertThat(body.get("reading").get("icing")).isEqualTo(Http.TRUE);
+        assertThat(Http.texts(body.get("reasons"), "reason")).containsExactly("icing");
+        assertThat(body.get("reasons").get(0).get("detail").asText()).isEqualTo("freezing fog riming the grips");
+    }
+
+    @Test
     void aLightningHoldSaysItRunsOnAClock() {
         record(reading().with("lightning_within", "20000 ft"));
         JsonNode body = hold("JP");

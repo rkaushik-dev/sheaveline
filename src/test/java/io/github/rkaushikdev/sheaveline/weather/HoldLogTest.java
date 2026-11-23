@@ -2,6 +2,8 @@ package io.github.rkaushikdev.sheaveline.weather;
 
 import static io.github.rkaushikdev.sheaveline.Hill.JOHN_PAUL;
 import static io.github.rkaushikdev.sheaveline.Hill.johnPaul;
+import static io.github.rkaushikdev.sheaveline.Summit.ACROSS;
+import static io.github.rkaushikdev.sheaveline.Summit.SUMMIT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -16,8 +18,6 @@ import org.junit.jupiter.api.Test;
 
 class HoldLogTest {
 
-    private static final Station SUMMIT = new Station("summit", Length.ofFeet(7965));
-    private static final String ACROSS = "SSE";
     private static final String GALE = ACROSS + " 30G60";
 
     private static LocalDateTime at(int hour, int minute) {

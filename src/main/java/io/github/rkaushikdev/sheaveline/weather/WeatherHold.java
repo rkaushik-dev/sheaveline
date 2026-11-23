@@ -245,7 +245,10 @@ public record WeatherHold(Lift lift, Observation observation) {
         if (!policy().holdsOnIce() || !observation.icing()) {
             return Optional.empty();
         }
-        return Optional.of(new Hold(HoldReason.ICING, "ice on the grips"));
+        String cause = observation.rime() || observation.precipitation().buildsIce()
+                ? "ice on the grips"
+                : "freezing fog riming the grips";
+        return Optional.of(new Hold(HoldReason.ICING, cause));
     }
 
     private Optional<Hold> lightningHold() {

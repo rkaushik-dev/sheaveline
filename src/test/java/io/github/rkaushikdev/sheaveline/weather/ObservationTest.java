@@ -1,88 +1,19 @@
 package io.github.rkaushikdev.sheaveline.weather;
 
+import static io.github.rkaushikdev.sheaveline.Summit.BASE;
+import static io.github.rkaushikdev.sheaveline.Summit.MID;
+import static io.github.rkaushikdev.sheaveline.Summit.SUMMIT;
+import static io.github.rkaushikdev.sheaveline.Summit.reading;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.rkaushikdev.sheaveline.measures.Duration;
 import io.github.rkaushikdev.sheaveline.measures.Length;
-import io.github.rkaushikdev.sheaveline.measures.Temperature;
-import io.github.rkaushikdev.sheaveline.measures.Wind;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class ObservationTest {
-
-    private static final Station SUMMIT = new Station("summit", Length.ofFeet(7965));
-    private static final Station MID = new Station("mid mountain", Length.ofFeet(7100));
-    private static final Station BASE = new Station("base", Length.ofFeet(6400));
-
-    private static final LocalDateTime NOON = LocalDateTime.of(2025, 1, 15, 12, 0);
-
-    /** A reading at the summit at noon, west eighteen and eight degrees, unless told otherwise. */
-    private static final class Reading {
-        private Station station = SUMMIT;
-        private int minutes;
-        private String wind = "W 18";
-        private long degrees = 8;
-        private long visibilityFeet = 30000;
-        private Precipitation precipitation = Precipitation.NONE;
-        private boolean rime;
-        private Optional<Length> lightning = Optional.empty();
-
-        Reading at(Station where, int minutesPastNoon) {
-            station = where;
-            minutes = minutesPastNoon;
-            return this;
-        }
-
-        Reading wind(String text) {
-            wind = text;
-            return this;
-        }
-
-        Reading degrees(long fahrenheit) {
-            degrees = fahrenheit;
-            return this;
-        }
-
-        Reading visibility(long feet) {
-            visibilityFeet = feet;
-            return this;
-        }
-
-        Reading falling(Precipitation what) {
-            precipitation = what;
-            return this;
-        }
-
-        Reading rime() {
-            rime = true;
-            return this;
-        }
-
-        Reading lightning(long feet) {
-            lightning = Optional.of(Length.ofFeet(feet));
-            return this;
-        }
-
-        Observation taken() {
-            return new Observation(
-                    station,
-                    minutes < 60 ? NOON.plusMinutes(minutes) : NOON,
-                    Wind.parse(wind),
-                    Temperature.ofDegreesF(degrees),
-                    Length.ofFeet(visibilityFeet),
-                    precipitation,
-                    rime,
-                    lightning);
-        }
-    }
-
-    private static Reading reading() {
-        return new Reading();
-    }
 
     private static Observation observed() {
         return reading().taken();
@@ -90,6 +21,23 @@ class ObservationTest {
 
     private static Observation observed(Station station, int minutes) {
         return reading().at(station, minutes).taken();
+    }
+
+    @Test
+    void cloudOnTheSummitInTheTwentiesRimesTheGrips() {
+        Observation fog = reading().visibility(1200).degrees(24).taken();
+        assertThat(fog.freezingFog()).isTrue();
+        assertThat(fog.icing()).isTrue();
+        assertThat(reading().visibility(1200).degrees(32).taken().freezingFog()).isTrue();
+        assertThat(reading().visibility(1200).degrees(14).taken().freezingFog()).isTrue();
+    }
+
+    @Test
+    void fogThatIsTooWarmTooColdOrNotFogDoesNotRime() {
+        assertThat(reading().visibility(1200).degrees(33).taken().icing()).isFalse();
+        assertThat(reading().visibility(1200).degrees(13).taken().icing()).isFalse();
+        assertThat(reading().visibility(3300).degrees(24).taken().icing()).isFalse();
+        assertThat(reading().visibility(3299).degrees(24).taken().icing()).isTrue();
     }
 
     @Test
