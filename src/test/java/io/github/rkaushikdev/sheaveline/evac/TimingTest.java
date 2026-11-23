@@ -73,6 +73,31 @@ class TimingTest {
     }
 
     @Test
+    void theTeamsWalkAtFullSpeedOnAPackedTrackAndSlowerPastIt() {
+        assertThat(EvacuationTiming.travelThrough(Length.ZERO)).isEqualTo(EvacuationTiming.TRAVEL_SPEED);
+        assertThat(EvacuationTiming.travelThrough(Length.ofFeet(2))).isEqualTo(Speed.ofFeetPerMinute(180));
+        assertThat(EvacuationTiming.travelThrough(Length.ofFeet(3))).isEqualTo(Speed.ofFeetPerMinute(150));
+        assertThat(EvacuationTiming.travelThrough(Length.ofFeetInches(4, 6))).isEqualTo(Speed.ofFeetPerMinute(105));
+        assertThat(EvacuationTiming.travelThrough(Length.ofFeet(30))).isEqualTo(EvacuationTiming.BREAKING_TRAIL);
+        assertThatThrownBy(() -> EvacuationTiming.travelThrough(Length.ofFeet(-1)))
+                .isInstanceOf(EvacuationError.class);
+    }
+
+    @Test
+    void deepSnowUnderTheLineLengthensTheWalkOutAndNothingElse() {
+        EvacuationTiming packed = timing(3, 2, List.of());
+        EvacuationTiming deep = timing(3, 5, List.of());
+        assertThat(deep.travel()).isEqualTo(Speed.ofFeetPerMinute(90));
+        assertThat(packed.travel()).isEqualTo(EvacuationTiming.TRAVEL_SPEED);
+        PlanStep walked = deep.plan().steps().stream()
+                .filter(step -> step.team().isPresent()
+                        && step.team().get().distanceTo(step.stop().station()).mils() > 0)
+                .findFirst()
+                .orElseThrow();
+        assertThat(deep.approachFor(walked)).isGreaterThan(packed.withLoad(3).approachFor(walked));
+    }
+
+    @Test
     void everyStepIsCostedInThreeParts() {
         List<StepTiming> costed = timing().timings();
         assertThat(costed).isNotEmpty();

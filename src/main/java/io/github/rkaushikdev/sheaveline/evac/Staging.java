@@ -66,8 +66,8 @@ public final class Staging {
     }
 
     /**
-     * Cut the line so the busiest team finishes as early as it can, at the usual walking speed and
-     * call out.
+     * Cut the line so the busiest team finishes as early as it can, with the usual call out and the
+     * teams walking at the speed the profile's snow allows.
      *
      * @param profile the machine and the conditions
      * @param pool the teams on the hill
@@ -80,7 +80,14 @@ public final class Staging {
      */
     public static StagingPlan stage(
             EvacuationProfile profile, TeamPool pool, Length offset, LocalDate on, int seatsFilled) {
-        return stage(profile, pool, offset, on, seatsFilled, EvacuationTiming.TRAVEL_SPEED, EvacuationTiming.CALL_OUT);
+        return stage(
+                profile,
+                pool,
+                offset,
+                on,
+                seatsFilled,
+                EvacuationTiming.travelThrough(profile.snow()),
+                EvacuationTiming.CALL_OUT);
     }
 
     /**

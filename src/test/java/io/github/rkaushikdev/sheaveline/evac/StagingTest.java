@@ -96,13 +96,15 @@ class StagingTest {
 
     @Test
     void aBeatWithNothingInItIsRefused() {
-        assertThatThrownBy(() -> new Beat(team(), List.of(), NOWHERE, 3)).isInstanceOf(EvacuationError.class);
+        assertThatThrownBy(() -> new Beat(team(), List.of(), NOWHERE, 3, EvacuationTiming.TRAVEL_SPEED))
+                .isInstanceOf(EvacuationError.class);
     }
 
     @Test
     void aBeatWithNobodyOnTheLineIsRefused() {
         List<CarrierStop> stops = profile().stopsAtOffset(NOWHERE).subList(0, 2);
-        assertThatThrownBy(() -> new Beat(team(), stops, NOWHERE, 0)).isInstanceOf(EvacuationError.class);
+        assertThatThrownBy(() -> new Beat(team(), stops, NOWHERE, 0, EvacuationTiming.TRAVEL_SPEED))
+                .isInstanceOf(EvacuationError.class);
     }
 
     @Test

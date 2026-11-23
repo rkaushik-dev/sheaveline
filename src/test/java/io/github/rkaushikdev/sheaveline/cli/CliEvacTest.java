@@ -141,6 +141,14 @@ class CliEvacTest {
     }
 
     @Test
+    void theStagingSaysHowFastTheTeamsWalkThroughTheSnow() {
+        assertThat(staging("--team", "alpha:24:200").output())
+                .contains("teams walking at 180 fpm through 2 ft of snow");
+        assertThat(staging("--team", "alpha:24:200", "--snow", "5 ft").output())
+                .contains("teams walking at 90 fpm through 5 ft of snow");
+    }
+
+    @Test
     void aTeamWrittenTheWrongWay() {
         Shell.Reply reply = staging("--team", "alpha 24 200");
         assertThat(reply.code()).isEqualTo(1);

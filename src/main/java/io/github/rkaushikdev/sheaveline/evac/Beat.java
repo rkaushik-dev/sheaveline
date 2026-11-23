@@ -42,18 +42,6 @@ public record Beat(RescueTeam team, List<CarrierStop> stops, Length stagedAt, in
     }
 
     /**
-     * A beat walked at the usual speed.
-     *
-     * @param team the team
-     * @param stops the carriers on the beat
-     * @param stagedAt where the team is parked
-     * @param seatsFilled people in each carrier
-     */
-    public Beat(RescueTeam team, List<CarrierStop> stops, Length stagedAt, int seatsFilled) {
-        this(team, stops, stagedAt, seatsFilled, EvacuationTiming.TRAVEL_SPEED);
-    }
-
-    /**
      * How this team's kit clears a carrier. Not the pool's best kit.
      *
      * @param stop the carrier

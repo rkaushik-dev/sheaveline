@@ -40,8 +40,17 @@ public record EvacuationTiming(EvacuationPlan plan, int seatsFilled, Duration ca
     /** How long from the drive being declared dead to the teams setting off. */
     public static final Duration CALL_OUT = Duration.ofMinutes(15);
 
-    /** How fast a team walks the line with its kit. */
+    /** How fast a team walks the line with its kit, on a packed track. */
     public static final Speed TRAVEL_SPEED = Speed.ofFeetPerMinute(180);
+
+    /** Snow up to this deep is a packed track under the line and costs the teams nothing. */
+    public static final Length PACKED_DEPTH = Length.ofFeet(2);
+
+    /** What every foot of snow past the packed depth takes off the walking speed. */
+    public static final Speed SLOWED_A_FOOT = Speed.ofFeetPerMinute(30);
+
+    /** The slowest a team breaks trail on snowshoes, however deep it is. */
+    public static final Speed BREAKING_TRAIL = Speed.ofFeetPerMinute(60);
 
     /** Rigging time for each method, once per carrier. */
     public static final Map<Method, Duration> SETUP =
@@ -72,13 +81,38 @@ public record EvacuationTiming(EvacuationPlan plan, int seatsFilled, Duration ca
     }
 
     /**
-     * A costed plan with the usual call out and walking speed.
+     * A costed plan with the usual call out, walking at the speed the snow under the line allows.
      *
      * @param plan the plan
      * @param seatsFilled people in each carrier
      */
     public EvacuationTiming(EvacuationPlan plan, int seatsFilled) {
-        this(plan, seatsFilled, CALL_OUT, TRAVEL_SPEED);
+        this(plan, seatsFilled, CALL_OUT, travelThrough(plan.profile().snow()));
+    }
+
+    /**
+     * How fast a team carrying a rope system and a ladder gets along the line through some depth of
+     * snow.
+     *
+     * <p>The track under a lift is packed by the patrol most mornings, and up to {@link
+     * #PACKED_DEPTH} of it walks like a groomed run. Past that the team is wading, and then breaking
+     * trail on snowshoes, and every foot more is a slower walk out to the far towers, which is the
+     * part of the clock nobody can work any faster.
+     *
+     * @param snow the snow on the ground under the line
+     * @return {@link #TRAVEL_SPEED} up to the packed depth, less {@link #SLOWED_A_FOOT} for each foot
+     *     past it, and never slower than {@link #BREAKING_TRAIL}
+     * @throws EvacuationError when the snow is negative
+     */
+    public static Speed travelThrough(Length snow) {
+        if (snow.mils() < 0) {
+            throw new EvacuationError("a snow depth is not negative");
+        }
+        long past = Math.max(0, snow.mils() - PACKED_DEPTH.mils());
+        BigDecimal feetPast = Decimals.divide(past, Length.MILS_PER_FOOT);
+        long slowed = TRAVEL_SPEED.milsPerMinute()
+                - Decimals.roundHalfAway(Decimals.multiply(feetPast, SLOWED_A_FOOT.milsPerMinute()));
+        return Speed.ofMilsPerMinute(Math.max(slowed, BREAKING_TRAIL.milsPerMinute()));
     }
 
     /**

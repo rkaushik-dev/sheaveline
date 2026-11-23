@@ -9,6 +9,7 @@ import io.github.rkaushikdev.sheaveline.evac.Drill;
 import io.github.rkaushikdev.sheaveline.evac.DrillKind;
 import io.github.rkaushikdev.sheaveline.evac.DrillRegister;
 import io.github.rkaushikdev.sheaveline.evac.EvacuationProfile;
+import io.github.rkaushikdev.sheaveline.evac.EvacuationTiming;
 import io.github.rkaushikdev.sheaveline.evac.RescueKit;
 import io.github.rkaushikdev.sheaveline.evac.RescueTeam;
 import io.github.rkaushikdev.sheaveline.evac.Staging;
@@ -250,6 +251,9 @@ final class EvacCommands {
                     TeamPool.of(teams.stream().map(one -> team(one, when)).toList());
             StagingPlan plan = Staging.stage(profile, pool, new Length(0), when, seats);
             console.say(plan.toString());
+            console.say("teams walking at "
+                    + EvacuationTiming.travelThrough(profile.snow()).formatFpm() + " through "
+                    + wholeFeet(profile.snow()) + " ft of snow");
             if (plan.beats().isEmpty()) {
                 plan.refusals().forEach(console::say);
                 return Main.REFUSED;
