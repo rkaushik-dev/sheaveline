@@ -1,50 +1,24 @@
 package io.github.rkaushikdev.sheaveline.ropework;
 
-import static io.github.rkaushikdev.sheaveline.Hill.johnPaul;
+import static io.github.rkaushikdev.sheaveline.Ropes.ROPE;
+import static io.github.rkaushikdev.sheaveline.Ropes.breaks;
+import static io.github.rkaushikdev.sheaveline.Ropes.corrosion;
+import static io.github.rkaushikdev.sheaveline.Ropes.loss;
+import static io.github.rkaushikdev.sheaveline.Ropes.magnetic;
+import static io.github.rkaushikdev.sheaveline.Ropes.reading;
+import static io.github.rkaushikdev.sheaveline.Ropes.seen;
+import static io.github.rkaushikdev.sheaveline.Ropes.walk;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.rkaushikdev.sheaveline.measures.Length;
 import io.github.rkaushikdev.sheaveline.measures.Load;
-import io.github.rkaushikdev.sheaveline.plant.HaulRope;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class VerdictTest {
-
-    private static final HaulRope ROPE = johnPaul().rope();
-    private static final LocalDate TAKEN = LocalDate.of(2025, 1, 15);
-
-    private static DiameterReading reading(long stationFeet, String inches, String second) {
-        return new DiameterReading(Length.ofFeet(stationFeet), Length.ofInches(inches), Length.ofInches(second));
-    }
-
-    private static DiameterReading reading(long stationFeet, String inches) {
-        return reading(stationFeet, inches, inches);
-    }
-
-    private static WearSurvey wear(List<LayReading> lays, DiameterReading... readings) {
-        List<DiameterReading> walked = readings.length == 0 ? List.of(reading(0, "1.376")) : List.of(readings);
-        return WearSurvey.of(ROPE, TAKEN, "R Halvorsen", walked, lays);
-    }
-
-    private static WearSurvey wear(DiameterReading... readings) {
-        return wear(List.of(), readings);
-    }
-
-    private static BreakSurvey breaks(BreakObservation... observations) {
-        return BreakSurvey.of(ROPE, TAKEN, "R Halvorsen", List.of(observations));
-    }
-
-    private static BreakObservation seen(long stationFeet, int one, int six) {
-        return new BreakObservation(Length.ofFeet(stationFeet), one, six, 0, false);
-    }
-
-    private static MagneticTest magnetic(Indication... indications) {
-        return MagneticTest.of(ROPE, TAKEN, "Wire Rope Diagnostics", "LMA-250", List.of(indications));
-    }
 
     private static SpliceRegister splices(Splice... entries) {
         List<Splice> held = entries.length == 0
@@ -77,7 +51,7 @@ class VerdictTest {
 
     @Test
     void aCondemnedDiameterFindsOnceAndNotAlsoAsWatched() {
-        WearSurvey walked = wear(reading(0, "1.376"), reading(1200, "1.270"));
+        WearSurvey walked = walk(reading(0, "1.376"), reading(1200, "1.270"));
         assertThat(Verdict.wearFindings(walked)).singleElement().satisfies(found -> {
             assertThat(found.verdict()).isSameAs(WearVerdict.CONDEMNED);
             assertThat(found.detail()).isEqualTo("92.2% of nominal");
@@ -107,13 +81,13 @@ class VerdictTest {
 
     @Test
     void aGoodRopeFiresNoRule() {
-        assertThat(Verdict.wearFindings(wear())).isEmpty();
-        assertThat(Verdict.assessWear(wear())).isSameAs(WearVerdict.SERVICEABLE);
+        assertThat(Verdict.wearFindings(walk(reading(0, "1.376")))).isEmpty();
+        assertThat(Verdict.assessWear(walk(reading(0, "1.376")))).isSameAs(WearVerdict.SERVICEABLE);
     }
 
     @Test
     void aThinRopeFiresTheDiameterRuleAndSaysTheReading() {
-        WearSurvey walked = wear(reading(0, "1.376"), reading(1200, "1.270"));
+        WearSurvey walked = walk(reading(0, "1.376"), reading(1200, "1.270"));
         List<Finding> found = Verdict.wearFindings(walked);
         assertThat(found).isNotEmpty();
         assertThat(found.get(0).source()).isEqualTo("diameter");
@@ -123,13 +97,13 @@ class VerdictTest {
 
     @Test
     void aRopeBetweenTheTwoDiameterRowsOnlyGetsWatched() {
-        WearSurvey walked = wear(reading(0, "1.376"), reading(1200, "1.310"));
+        WearSurvey walked = walk(reading(0, "1.376"), reading(1200, "1.310"));
         assertThat(Verdict.assessWear(walked)).isSameAs(WearVerdict.MONITOR);
     }
 
     @Test
     void anOvalRopeFiresTheOvalityRow() {
-        WearSurvey walked = wear(reading(0, "1.378"), reading(600, "1.400", "1.320"));
+        WearSurvey walked = walk(reading(0, "1.378"), reading(600, "1.400", "1.320"));
         assertThat(Verdict.wearFindings(walked).stream().map(Finding::source).distinct())
                 .containsExactly("ovality");
         assertThat(Verdict.assessWear(walked)).isSameAs(WearVerdict.MONITOR);
@@ -138,7 +112,7 @@ class VerdictTest {
     @Test
     void aNeckOnAnOtherwiseGoodRopeIsWatched() {
         WearSurvey walked =
-                wear(reading(0, "1.392"), reading(1200, "1.390"), reading(2400, "1.346"), reading(3600, "1.388"));
+                walk(reading(0, "1.392"), reading(1200, "1.390"), reading(2400, "1.346"), reading(3600, "1.388"));
         assertThat(walked.smallestPercent()).isGreaterThan(BigDecimal.valueOf(97));
         assertThat(walked.neckPercent()).isGreaterThan(BigDecimal.valueOf(3));
         assertThat(Verdict.wearFindings(walked)).singleElement().satisfies(found -> {
@@ -150,14 +124,14 @@ class VerdictTest {
 
     @Test
     void aRopeWornEvenlyHasNoNeckHoweverThinItIs() {
-        WearSurvey walked = wear(reading(0, "1.300"), reading(1200, "1.298"), reading(2400, "1.296"));
+        WearSurvey walked = walk(reading(0, "1.300"), reading(1200, "1.298"), reading(2400, "1.296"));
         assertThat(walked.neckPercent()).isLessThan(BigDecimal.ONE);
         assertThat(Verdict.wearFindings(walked)).extracting(Finding::source).doesNotContain("local reduction");
     }
 
     @Test
     void twoStationsAreNotEnoughToCallANeck() {
-        WearSurvey walked = wear(reading(0, "1.376"), reading(1200, "1.320"));
+        WearSurvey walked = walk(reading(0, "1.376"), reading(1200, "1.320"));
         assertThat(walked.neckPercent()).isZero();
         assertThat(walked.median()).isEqualTo(Length.ofInches("1.320"));
         assertThat(Verdict.wearFindings(walked)).extracting(Finding::source).containsExactly("diameter");
@@ -166,9 +140,11 @@ class VerdictTest {
     @Test
     void aStretchedLayFiresAtTwoRowsDependingHowFar() {
         Length nominal = ROPE.spec().layLength();
-        WearSurvey watched = wear(List.of(new LayReading(Length.ofFeet(600), nominal.scaled("1.03"))));
+        WearSurvey watched =
+                walk(List.of(new LayReading(Length.ofFeet(600), nominal.scaled("1.03"))), reading(0, "1.376"));
         assertThat(Verdict.assessWear(watched)).isSameAs(WearVerdict.MONITOR);
-        WearSurvey gone = wear(List.of(new LayReading(Length.ofFeet(600), nominal.scaled("1.08"))));
+        WearSurvey gone =
+                walk(List.of(new LayReading(Length.ofFeet(600), nominal.scaled("1.08"))), reading(0, "1.376"));
         assertThat(Verdict.assessWear(gone)).isSameAs(WearVerdict.CONDEMNED);
     }
 
@@ -218,7 +194,9 @@ class VerdictTest {
             assertThat(found.source()).isEqualTo("magnetic test");
             assertThat(found.detail()).isEqualTo("10.4% loss of area");
         });
-        assertThat(Verdict.TRACE_RULES).extracting(ReadingRule::name).containsExactly("loss of area", "local fault");
+        assertThat(Verdict.TRACE_RULES)
+                .extracting(ReadingRule::name)
+                .containsExactly("loss of area", "local fault", "corrosion");
         assertThat(Verdict.TRACE_RULES).extracting(ReadingRule::source).containsOnly("magnetic test");
     }
 
@@ -239,6 +217,27 @@ class VerdictTest {
     }
 
     @Test
+    void corrosionOnTheTraceIsWatchedAndThenCondemnsBeforeALossOfAreaWould() {
+        assertThat(Verdict.assessTest(magnetic(corrosion(3000, "2")))).isSameAs(WearVerdict.SERVICEABLE);
+        assertThat(Verdict.testFindings(magnetic(corrosion(3000, "3.5"))))
+                .singleElement()
+                .satisfies(found -> {
+                    assertThat(found.verdict()).isSameAs(WearVerdict.MONITOR);
+                    assertThat(found.detail()).isEqualTo("3.5% corrosion");
+                });
+        assertThat(Verdict.assessTest(magnetic(corrosion(3000, "6.5")))).isSameAs(WearVerdict.CONDEMNED);
+        assertThat(Verdict.assessTest(magnetic(loss(3000, "6.5")))).isSameAs(WearVerdict.MONITOR);
+    }
+
+    @Test
+    void corrosionReachesTheRopeFileUnderTheMagneticTest() {
+        RopeFile held = new RopeFile().withMagnetic(magnetic(corrosion(3000, "7"), loss(1800, "4")));
+        assertThat(held.sources()).containsExactly("magnetic test");
+        assertThat(held.worst().detail()).isEqualTo("7% corrosion");
+        assertThat(held.mayRun()).isFalse();
+    }
+
+    @Test
     void anEmptyRopeFileSaysNothingAgainstTheRope() {
         RopeFile empty = new RopeFile();
         assertThat(empty.findings()).isEmpty();
@@ -250,7 +249,7 @@ class VerdictTest {
     @Test
     void aRopeFileReadsEverySourceItHas() {
         RopeFile held = new RopeFile()
-                .withWear(wear(reading(0, "1.376"), reading(1200, "1.310")))
+                .withWear(walk(reading(0, "1.376"), reading(1200, "1.310")))
                 .withBreaks(breaks(seen(1200, 4, 7)))
                 .withMagnetic(magnetic(Indication.loss(Length.ofFeet(1800), "7.4")));
         assertThat(held.sources()).containsExactlyInAnyOrder("diameter", "broken wires", "magnetic test");
@@ -260,7 +259,7 @@ class VerdictTest {
     @Test
     void theWorstSourceWinsTheFile() {
         RopeFile held = new RopeFile()
-                .withWear(wear(reading(0, "1.376"), reading(1200, "1.310")))
+                .withWear(walk(reading(0, "1.376"), reading(1200, "1.310")))
                 .withBreaks(breaks(seen(1200, 7, 9)));
         assertThat(held.verdict()).isSameAs(WearVerdict.CONDEMNED);
         assertThat(held.mayRun()).isFalse();
@@ -307,7 +306,7 @@ class VerdictTest {
 
     @Test
     void aFindingPrintsItsSourceAndItsReading() {
-        WearSurvey walked = wear(reading(0, "1.376"), reading(1200, "1.270"));
+        WearSurvey walked = walk(reading(0, "1.376"), reading(1200, "1.270"));
         assertThat(Verdict.wearFindings(walked).get(0).toString()).startsWith("diameter: ");
     }
 }

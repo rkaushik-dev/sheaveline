@@ -1,6 +1,10 @@
 package io.github.rkaushikdev.sheaveline.ropework;
 
-import static io.github.rkaushikdev.sheaveline.Hill.johnPaul;
+import static io.github.rkaushikdev.sheaveline.Ropes.ROPE;
+import static io.github.rkaushikdev.sheaveline.Ropes.corrosion;
+import static io.github.rkaushikdev.sheaveline.Ropes.fault;
+import static io.github.rkaushikdev.sheaveline.Ropes.loss;
+import static io.github.rkaushikdev.sheaveline.Ropes.magnetic;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -14,26 +18,12 @@ import org.junit.jupiter.api.Test;
 
 class MrtTest {
 
-    private static final HaulRope ROPE = johnPaul().rope();
-
     private static HaulRope otherRope() {
         return new HaulRope(RopeSerial.parse("BRI-2019-00777"), ROPE.spec(), ROPE.installed(), ROPE.length(), 1);
     }
 
-    private static MagneticTest magneticTest(Indication... indications) {
-        return magneticTest(ROPE, LocalDate.of(2025, 1, 15), indications);
-    }
-
     private static MagneticTest magneticTest(HaulRope rope, LocalDate taken, Indication... indications) {
         return MagneticTest.of(rope, taken, "Wire Rope Diagnostics", "LMA-250", List.of(indications));
-    }
-
-    private static Indication loss(long stationFeet, String percent) {
-        return Indication.loss(Length.ofFeet(stationFeet), percent);
-    }
-
-    private static Indication fault(long stationFeet, int wires) {
-        return Indication.fault(Length.ofFeet(stationFeet), wires);
     }
 
     @Test
@@ -73,12 +63,12 @@ class MrtTest {
     void aTestCannotPredateTheRopeOrRunPastItsEnd() {
         assertThatThrownBy(() -> MagneticTest.of(ROPE, LocalDate.of(2015, 1, 1), "WRD", "LMA-250"))
                 .isInstanceOf(RopeworkError.class);
-        assertThatThrownBy(() -> magneticTest(loss(12000, "2"))).isInstanceOf(RopeworkError.class);
+        assertThatThrownBy(() -> magnetic(loss(12000, "2"))).isInstanceOf(RopeworkError.class);
     }
 
     @Test
     void indicationsCanBePulledOutByKind() {
-        MagneticTest walked = magneticTest(loss(600, "2.0"), fault(2400, 3));
+        MagneticTest walked = magnetic(loss(600, "2.0"), fault(2400, 3));
         assertThat(walked.ofKind(IndicationKind.LOSS_OF_AREA)).hasSize(1);
         assertThat(walked.ofKind(IndicationKind.LOCAL_FAULT)).hasSize(1);
         assertThat(walked.ofKind(IndicationKind.CORROSION)).isEmpty();
@@ -90,16 +80,25 @@ class MrtTest {
         Indication first = Indication.fault(Length.ofFeet(2400), 2);
         Indication close = Indication.fault(Length.ofFeet(2400).plus(lay), 2);
         Indication apart = Indication.fault(Length.ofFeet(2400).plus(lay).plus(Length.ofMils(1)), 2);
-        assertThat(magneticTest(first, close).wiresInOneLay()).isEqualTo(4);
-        assertThat(magneticTest(first, apart).wiresInOneLay()).isEqualTo(2);
-        assertThat(magneticTest(first, close).largestFault()).isEqualTo(2);
+        assertThat(magnetic(first, close).wiresInOneLay()).isEqualTo(4);
+        assertThat(magnetic(first, apart).wiresInOneLay()).isEqualTo(2);
+        assertThat(magnetic(first, close).largestFault()).isEqualTo(2);
     }
 
     @Test
     void theLayGroupIsReadInStationOrderWhateverOrderTheReportGaveIt() {
-        MagneticTest walked = magneticTest(fault(4000, 1), fault(600, 3), loss(2400, "5"), fault(4000, 2));
+        MagneticTest walked = magnetic(fault(4000, 1), fault(600, 3), loss(2400, "5"), fault(4000, 2));
         assertThat(walked.wiresInOneLay()).isEqualTo(3);
-        assertThat(magneticTest(loss(600, "2.0")).wiresInOneLay()).isZero();
+        assertThat(magnetic(loss(600, "2.0")).wiresInOneLay()).isZero();
+    }
+
+    @Test
+    void theWorstCorrosionIsReadOffItsOwnMarks() {
+        MagneticTest walked = magnetic(corrosion(600, "1.5"), loss(1200, "8"), corrosion(4000, "3.25"));
+        assertThat(walked.peakCorrosion()).isEqualByComparingTo("3.25");
+        assertThat(walked.peakLoss()).isEqualByComparingTo("8");
+        assertThat(magnetic(loss(600, "2")).peakCorrosion()).isZero();
+        assertThat(corrosion(600, "1.5")).hasToString("1.5% corrosion at 600 ft");
     }
 
     @Test

@@ -32,6 +32,15 @@ public record MagneticTest(
     /** A loss of metallic area above this percentage puts the rope on watch. */
     public static final BigDecimal LMA_WATCH = BigDecimal.valueOf(6);
 
+    /**
+     * Corrosion above this percentage condemns the rope. It is lower than the loss of area figure
+     * because rust does not thin a wire evenly, it pits it, and a pitted wire breaks at the pit.
+     */
+    public static final BigDecimal CORROSION_CONDEMN = BigDecimal.valueOf(6);
+
+    /** Corrosion above this percentage puts the rope on watch, and on a dressing before the month is out. */
+    public static final BigDecimal CORROSION_WATCH = BigDecimal.valueOf(2);
+
     /** A local fault of more wires than this condemns the rope. */
     public static final int LOCAL_FAULT_CONDEMN = 4;
 
@@ -112,6 +121,18 @@ public record MagneticTest(
      */
     public BigDecimal peakLoss() {
         return ofKind(IndicationKind.LOSS_OF_AREA).stream()
+                .map(Indication::magnitude)
+                .max(Comparator.naturalOrder())
+                .orElse(BigDecimal.ZERO);
+    }
+
+    /**
+     * The worst corrosion on the trace.
+     *
+     * @return the percentage, zero when the trace shows none
+     */
+    public BigDecimal peakCorrosion() {
+        return ofKind(IndicationKind.CORROSION).stream()
                 .map(Indication::magnitude)
                 .max(Comparator.naturalOrder())
                 .orElse(BigDecimal.ZERO);

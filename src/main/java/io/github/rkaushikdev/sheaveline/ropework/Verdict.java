@@ -51,7 +51,7 @@ public final class Verdict {
                     WATCHED_NECK,
                     value -> Decimals.quantize(value, 1) + "% under the rest of the rope"));
 
-    /** The trace rows, the loss of area before the local faults. */
+    /** The trace rows: the loss of area, then the local faults, then the corrosion. */
     public static final List<ReadingRule<MagneticTest>> TRACE_RULES = List.of(
             ReadingRule.<MagneticTest>above(
                             "magnetic test",
@@ -66,7 +66,14 @@ public final class Verdict {
                             BigDecimal.valueOf(MagneticTest.LOCAL_FAULT_CONDEMN),
                             BigDecimal.valueOf(MagneticTest.LOCAL_FAULT_WATCH),
                             value -> value + " wires broken inside one lay")
-                    .named("local fault"));
+                    .named("local fault"),
+            ReadingRule.<MagneticTest>above(
+                            "magnetic test",
+                            MagneticTest::peakCorrosion,
+                            MagneticTest.CORROSION_CONDEMN,
+                            MagneticTest.CORROSION_WATCH,
+                            value -> value + "% corrosion")
+                    .named("corrosion"));
 
     private Verdict() {}
 
@@ -124,8 +131,8 @@ public final class Verdict {
     }
 
     /**
-     * What fires on a magnetic test: the peak loss of metallic area, and the most wires the local
-     * faults add up to inside one lay, each at the worse of its two levels.
+     * What fires on a magnetic test: the peak loss of metallic area, the most wires the local faults
+     * add up to inside one lay, and the worst corrosion, each at the worse of its two levels.
      *
      * @param test the test
      * @return the findings, the loss before the faults

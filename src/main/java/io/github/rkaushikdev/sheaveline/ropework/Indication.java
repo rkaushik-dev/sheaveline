@@ -63,6 +63,17 @@ public record Indication(Length station, IndicationKind kind, BigDecimal magnitu
     }
 
     /**
+     * Corrosion inside the rope.
+     *
+     * @param station where along the rope
+     * @param percent how much of the section the rust has taken, such as {@code "3.5"}
+     * @return the indication
+     */
+    public static Indication corrosion(Length station, String percent) {
+        return new Indication(station, IndicationKind.CORROSION, Decimals.of(percent));
+    }
+
+    /**
      * A local fault.
      *
      * @param station where along the rope

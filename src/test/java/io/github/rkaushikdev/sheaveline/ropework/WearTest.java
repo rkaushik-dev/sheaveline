@@ -1,11 +1,12 @@
 package io.github.rkaushikdev.sheaveline.ropework;
 
-import static io.github.rkaushikdev.sheaveline.Hill.johnPaul;
+import static io.github.rkaushikdev.sheaveline.Ropes.ROPE;
+import static io.github.rkaushikdev.sheaveline.Ropes.reading;
+import static io.github.rkaushikdev.sheaveline.Ropes.walk;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.rkaushikdev.sheaveline.measures.Length;
-import io.github.rkaushikdev.sheaveline.plant.HaulRope;
 import io.github.rkaushikdev.sheaveline.util.Decimals;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -14,20 +15,10 @@ import org.junit.jupiter.api.Test;
 
 class WearTest {
 
-    private static final HaulRope ROPE = johnPaul().rope();
     private static final Length NOMINAL = ROPE.diameter();
 
-    private static DiameterReading reading(long stationFeet, String inches) {
-        return reading(stationFeet, inches, inches);
-    }
-
-    private static DiameterReading reading(long stationFeet, String inches, String second) {
-        return new DiameterReading(Length.ofFeet(stationFeet), Length.ofInches(inches), Length.ofInches(second));
-    }
-
     private static WearSurvey survey(DiameterReading... readings) {
-        List<DiameterReading> walked = readings.length == 0 ? List.of(reading(0, "1.378")) : List.of(readings);
-        return WearSurvey.of(ROPE, LocalDate.of(2025, 1, 15), "R Halvorsen", walked, List.of());
+        return readings.length == 0 ? walk(reading(0, "1.378")) : walk(readings);
     }
 
     @Test

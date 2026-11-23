@@ -1,6 +1,8 @@
 package io.github.rkaushikdev.sheaveline.ropework;
 
-import static io.github.rkaushikdev.sheaveline.Hill.johnPaul;
+import static io.github.rkaushikdev.sheaveline.Ropes.ROPE;
+import static io.github.rkaushikdev.sheaveline.Ropes.breaks;
+import static io.github.rkaushikdev.sheaveline.Ropes.seen;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
@@ -15,8 +17,6 @@ import org.junit.jupiter.api.Test;
 
 class BreaksTest {
 
-    private static final HaulRope ROPE = johnPaul().rope();
-
     private static HaulRope langRope() {
         RopeSpec spec = new RopeSpec(
                 ROPE.spec().construction(),
@@ -28,15 +28,7 @@ class BreaksTest {
         return new HaulRope(ROPE.serial(), spec, ROPE.installed(), ROPE.length(), 1);
     }
 
-    private static BreakObservation seen(long stationFeet, int one, int six, int valley, boolean splice) {
-        return new BreakObservation(Length.ofFeet(stationFeet), one, six, valley, splice);
-    }
-
-    private static BreakObservation seen(long stationFeet, int one, int six) {
-        return seen(stationFeet, one, six, 0, false);
-    }
-
-    private static BreakObservation seen(long stationFeet, int one) {
+    private static BreakObservation crowns(long stationFeet, int one) {
         return seen(stationFeet, one, one);
     }
 
@@ -46,10 +38,6 @@ class BreaksTest {
 
     private static BreakObservation spliced(long stationFeet, int one, boolean splice) {
         return seen(stationFeet, one, one, 0, splice);
-    }
-
-    private static BreakSurvey survey(BreakObservation... observations) {
-        return BreakSurvey.of(ROPE, LocalDate.of(2025, 1, 15), "R Halvorsen", List.of(observations));
     }
 
     @Test
@@ -78,7 +66,7 @@ class BreaksTest {
 
     @Test
     void anObservationChecksItsOwnCounts() {
-        assertThatThrownBy(() -> seen(-10, 2)).isInstanceOf(RopeworkError.class);
+        assertThatThrownBy(() -> crowns(-10, 2)).isInstanceOf(RopeworkError.class);
         assertThatThrownBy(() -> new BreakObservation(Length.ofFeet(0), -1, 0)).isInstanceOf(RopeworkError.class);
         assertThatThrownBy(() -> seen(0, 5, 2)).isInstanceOf(RopeworkError.class);
         assertThatThrownBy(() -> valley(0, 2, 3)).isInstanceOf(RopeworkError.class);
@@ -148,7 +136,7 @@ class BreaksTest {
 
     @Test
     void aBrokenWireFindingSaysTheStationAndWhatItIsOver() {
-        BreakSurvey walked = survey(seen(1200, 7, 9), seen(2400, 4, 7));
+        BreakSurvey walked = breaks(seen(1200, 7, 9), seen(2400, 4, 7));
         assertThat(Verdict.breakFindings(walked))
                 .extracting(Finding::verdict, Finding::detail)
                 .containsExactly(
@@ -160,13 +148,13 @@ class BreaksTest {
 
     @Test
     void theWorstStationPrefersAValleyBreakOverABiggerCrownCount() {
-        BreakSurvey walked = survey(seen(600, 5), valley(1200, 2, 1));
+        BreakSurvey walked = breaks(crowns(600, 5), valley(1200, 2, 1));
         assertThat(walked.worst().orElseThrow().station()).isEqualTo(Length.ofFeet(1200));
     }
 
     @Test
     void theBreaksAddUpAcrossTheWalk() {
-        BreakSurvey walked = survey(seen(600, 3), seen(1200, 2), seen(2400, 4));
+        BreakSurvey walked = breaks(crowns(600, 3), crowns(1200, 2), crowns(2400, 4));
         assertThat(walked.totalBreaks()).isEqualTo(9);
     }
 
@@ -180,13 +168,13 @@ class BreaksTest {
 
     @Test
     void aStationPastTheEndOfTheRopeIsRefused() {
-        assertThatThrownBy(() -> survey(seen(12000, 2))).isInstanceOf(RopeworkError.class);
+        assertThatThrownBy(() -> breaks(crowns(12000, 2))).isInstanceOf(RopeworkError.class);
     }
 
     @Test
     void theCleanLengthTakesOutALayForEveryMarkedStation() {
-        BreakSurvey walked = survey(seen(600, 3), seen(1200, 2));
+        BreakSurvey walked = breaks(crowns(600, 3), crowns(1200, 2));
         assertThat(walked.cleanLength()).isLessThan(ROPE.length());
-        assertThat(survey().cleanLength()).isEqualTo(ROPE.length());
+        assertThat(breaks().cleanLength()).isEqualTo(ROPE.length());
     }
 }
