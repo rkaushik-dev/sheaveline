@@ -66,9 +66,43 @@ class VerdictTest {
 
     @Test
     void theWearRulesAreRowsRatherThanAChain() {
-        assertThat(Verdict.WEAR_RULES).hasSize(6);
-        assertThat(Verdict.WEAR_RULES.stream().map(WearRule::name).distinct())
-                .containsExactlyInAnyOrder("diameter", "lay length", "ovality", "local reduction");
+        assertThat(Verdict.WEAR_RULES)
+                .extracting(ReadingRule::name)
+                .containsExactly("diameter", "lay length", "ovality", "local reduction");
+        assertThat(Verdict.WEAR_RULES)
+                .filteredOn(rule -> rule.condemnPast().isEmpty())
+                .extracting(ReadingRule::name)
+                .containsExactly("ovality", "local reduction");
+    }
+
+    @Test
+    void aCondemnedDiameterFindsOnceAndNotAlsoAsWatched() {
+        WearSurvey walked = wear(reading(0, "1.376"), reading(1200, "1.270"));
+        assertThat(Verdict.wearFindings(walked)).singleElement().satisfies(found -> {
+            assertThat(found.verdict()).isSameAs(WearVerdict.CONDEMNED);
+            assertThat(found.detail()).isEqualTo("92.2% of nominal");
+        });
+    }
+
+    @Test
+    void aDiameterRowIsWorseBelowAndALayRowIsWorseAbove() {
+        ReadingRule<WearSurvey> diameter = Verdict.WEAR_RULES.get(0);
+        assertThat(diameter.worseBelow()).isTrue();
+        assertThat(diameter.judge(BigDecimal.valueOf(97))).isSameAs(WearVerdict.SERVICEABLE);
+        assertThat(diameter.judge(new BigDecimal("96.9"))).isSameAs(WearVerdict.MONITOR);
+        assertThat(diameter.judge(BigDecimal.valueOf(93))).isSameAs(WearVerdict.MONITOR);
+        assertThat(diameter.judge(new BigDecimal("92.9"))).isSameAs(WearVerdict.CONDEMNED);
+        ReadingRule<WearSurvey> lay = Verdict.WEAR_RULES.get(1);
+        assertThat(lay.worseBelow()).isFalse();
+        assertThat(lay.judge(new BigDecimal("0.06"))).isSameAs(WearVerdict.CONDEMNED);
+        assertThat(lay.judge(new BigDecimal("0.03"))).isSameAs(WearVerdict.MONITOR);
+    }
+
+    @Test
+    void aWatchedOnlyReadingNeverCondemnsHoweverFarItGoes() {
+        ReadingRule<WearSurvey> ovality = Verdict.WEAR_RULES.get(2);
+        assertThat(ovality.judge(BigDecimal.valueOf(50))).isSameAs(WearVerdict.MONITOR);
+        assertThat(ovality.judge(new BigDecimal("0.05"))).isSameAs(WearVerdict.SERVICEABLE);
     }
 
     @Test
@@ -184,15 +218,20 @@ class VerdictTest {
             assertThat(found.source()).isEqualTo("magnetic test");
             assertThat(found.detail()).isEqualTo("10.4% loss of area");
         });
-        assertThat(Verdict.TRACE_RULES).extracting(TraceRule::name).containsExactly("loss of area", "local fault");
+        assertThat(Verdict.TRACE_RULES).extracting(ReadingRule::name).containsExactly("loss of area", "local fault");
+        assertThat(Verdict.TRACE_RULES).extracting(ReadingRule::source).containsOnly("magnetic test");
     }
 
     @Test
     void aTraceRowCannotWatchAboveWhereItCondemns() {
-        assertThatThrownBy(() -> new TraceRule(
-                        "loss of area", MagneticTest::peakLoss, BigDecimal.ONE, BigDecimal.TEN, String::valueOf))
+        assertThatThrownBy(() -> ReadingRule.above(
+                        "magnetic test", MagneticTest::peakLoss, BigDecimal.ONE, BigDecimal.TEN, String::valueOf))
+                .isInstanceOf(RopeworkError.class)
+                .hasMessage("a magnetic test reading is watched before it is condemned, not after");
+        assertThatThrownBy(() -> ReadingRule.<WearSurvey>below(
+                        "diameter", WearSurvey::smallestPercent, BigDecimal.TEN, BigDecimal.ONE, String::valueOf))
                 .isInstanceOf(RopeworkError.class);
-        TraceRule row = Verdict.TRACE_RULES.get(0);
+        ReadingRule<MagneticTest> row = Verdict.TRACE_RULES.get(0);
         assertThat(row.judge(BigDecimal.valueOf(6))).isSameAs(WearVerdict.SERVICEABLE);
         assertThat(row.judge(new BigDecimal("6.1"))).isSameAs(WearVerdict.MONITOR);
         assertThat(row.judge(BigDecimal.valueOf(10))).isSameAs(WearVerdict.MONITOR);

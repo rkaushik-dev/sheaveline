@@ -162,6 +162,24 @@ class RopefileTest {
     }
 
     @Test
+    void theMagneticTableCountsTheWiresInOneLayRatherThanTheBiggestMark() {
+        MagneticTest faults = MagneticTest.of(
+                ROPE,
+                ON,
+                "Wire Rope Diagnostics",
+                "LMA-250",
+                List.of(Indication.fault(Length.ofFeet(2400), 2), Indication.fault(Length.ofFeetInches(2400, 4), 3)));
+        String text = page().tests(faults).made().text();
+        assertThat(text).contains("per lay", "magnetic test: 5 wires broken inside one lay");
+        assertThat(text.lines()
+                        .filter(line -> line.startsWith(ON.toString()))
+                        .findFirst()
+                        .orElseThrow())
+                .contains(" 5 ", "condemned")
+                .doesNotContain(" 3 ");
+    }
+
+    @Test
     void aFailingSpliceRegisterReachesTheVerdict() {
         String text = page().splices(splicesAt(200)).made().text();
         assertThat(text).contains("standing                 condemned");

@@ -189,14 +189,14 @@ public record RopeFilePage(
                             new Column("taken", 11),
                             new Column("contractor", 24),
                             new Column("peak loss", 10, Align.RIGHT),
-                            new Column("fault", 6, Align.RIGHT),
+                            new Column("per lay", 8, Align.RIGHT),
                             new Column("verdict", 12)),
                     tests.stream()
                             .map(one -> List.of(
                                     one.taken().toString(),
                                     one.contractor(),
                                     one.peakLoss() + "%",
-                                    one.largestFault(),
+                                    one.wiresInOneLay(),
                                     Verdict.assessTest(one).value()))
                             .toList()));
         }

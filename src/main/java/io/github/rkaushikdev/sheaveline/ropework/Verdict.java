@@ -26,59 +26,47 @@ public final class Verdict {
     private static final BigDecimal WATCHED_OVALITY = new BigDecimal("0.05");
     private static final BigDecimal WATCHED_NECK = BigDecimal.valueOf(3);
 
-    /** The wear rows, condemning rows first. */
-    public static final List<WearRule> WEAR_RULES = List.of(
-            new WearRule(
+    /** The wear rows, one a reading, each finding once at the worse level it reaches. */
+    public static final List<ReadingRule<WearSurvey>> WEAR_RULES = List.of(
+            ReadingRule.below(
                     "diameter",
-                    WearVerdict.CONDEMNED,
                     WearSurvey::smallestPercent,
-                    value -> value.compareTo(CONDEMNING_PERCENT) < 0,
-                    Verdict::ofNominal),
-            new WearRule(
+                    CONDEMNING_PERCENT,
+                    WATCHED_PERCENT,
+                    value -> Decimals.quantize(value, 1) + "% of nominal"),
+            ReadingRule.above(
                     "lay length",
-                    WearVerdict.CONDEMNED,
                     WearSurvey::worstLayStretch,
-                    value -> value.compareTo(CONDEMNING_STRETCH) > 0,
-                    Verdict::layOpened),
-            new WearRule(
-                    "diameter",
-                    WearVerdict.MONITOR,
-                    WearSurvey::smallestPercent,
-                    value -> value.compareTo(WATCHED_PERCENT) < 0,
-                    Verdict::ofNominal),
-            new WearRule(
+                    CONDEMNING_STRETCH,
+                    WATCHED_STRETCH,
+                    value -> "lay opened " + percent(value) + "%"),
+            ReadingRule.watchedAbove(
                     "ovality",
-                    WearVerdict.MONITOR,
                     WearSurvey::worstOvalityFraction,
-                    value -> value.compareTo(WATCHED_OVALITY) > 0,
+                    WATCHED_OVALITY,
                     value -> percent(value) + "% out of round"),
-            new WearRule(
+            ReadingRule.watchedAbove(
                     "local reduction",
-                    WearVerdict.MONITOR,
                     WearSurvey::neckPercent,
-                    value -> value.compareTo(WATCHED_NECK) > 0,
-                    value -> Decimals.quantize(value, 1) + "% under the rest of the rope"),
-            new WearRule(
-                    "lay length",
-                    WearVerdict.MONITOR,
-                    WearSurvey::worstLayStretch,
-                    value -> value.compareTo(WATCHED_STRETCH) > 0,
-                    Verdict::layOpened));
+                    WATCHED_NECK,
+                    value -> Decimals.quantize(value, 1) + "% under the rest of the rope"));
 
     /** The trace rows, the loss of area before the local faults. */
-    public static final List<TraceRule> TRACE_RULES = List.of(
-            new TraceRule(
-                    "loss of area",
-                    MagneticTest::peakLoss,
-                    MagneticTest.LMA_CONDEMN,
-                    MagneticTest.LMA_WATCH,
-                    value -> value + "% loss of area"),
-            new TraceRule(
-                    "local fault",
-                    test -> BigDecimal.valueOf(test.wiresInOneLay()),
-                    BigDecimal.valueOf(MagneticTest.LOCAL_FAULT_CONDEMN),
-                    BigDecimal.valueOf(MagneticTest.LOCAL_FAULT_WATCH),
-                    value -> value + " wires broken inside one lay"));
+    public static final List<ReadingRule<MagneticTest>> TRACE_RULES = List.of(
+            ReadingRule.<MagneticTest>above(
+                            "magnetic test",
+                            MagneticTest::peakLoss,
+                            MagneticTest.LMA_CONDEMN,
+                            MagneticTest.LMA_WATCH,
+                            value -> value + "% loss of area")
+                    .named("loss of area"),
+            ReadingRule.<MagneticTest>above(
+                            "magnetic test",
+                            test -> BigDecimal.valueOf(test.wiresInOneLay()),
+                            BigDecimal.valueOf(MagneticTest.LOCAL_FAULT_CONDEMN),
+                            BigDecimal.valueOf(MagneticTest.LOCAL_FAULT_WATCH),
+                            value -> value + " wires broken inside one lay")
+                    .named("local fault"));
 
     private Verdict() {}
 
@@ -173,14 +161,6 @@ public final class Verdict {
             return WearVerdict.MONITOR;
         }
         return WearVerdict.SERVICEABLE;
-    }
-
-    private static String ofNominal(BigDecimal value) {
-        return Decimals.quantize(value, 1) + "% of nominal";
-    }
-
-    private static String layOpened(BigDecimal value) {
-        return "lay opened " + percent(value) + "%";
     }
 
     private static BigDecimal percent(BigDecimal fraction) {
