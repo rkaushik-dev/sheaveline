@@ -13,6 +13,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Whether the weather stops a lift, and which weather it was: one machine read against one
@@ -168,6 +169,43 @@ public record WeatherHold(Lift lift, Observation observation) {
     }
 
     /**
+     * The wind readings close enough to the limit that the machine runs slow: inside the limit, so
+     * nothing holds it, but not back to the figure a hold would reopen at.
+     *
+     * @return the gust and the crosswind that slow the machine, in that order, empty when neither
+     *     does or when the machine is held anyway
+     */
+    public List<Hold> slowings() {
+        if (isHeld()) {
+            return List.of();
+        }
+        return Stream.of(GUST, CROSSWIND)
+                .flatMap(one -> one.near(this).stream())
+                .toList();
+    }
+
+    /**
+     * Whether the machine runs, but slowed for the wind.
+     *
+     * @return true when it may run and something slows it
+     */
+    public boolean runsSlow() {
+        return !slowings().isEmpty();
+    }
+
+    /**
+     * The rope speed the machine is slowed to.
+     *
+     * @return {@link Policy#SLOW_RUNNING} of its design speed when it runs slow, otherwise empty
+     */
+    public Optional<Speed> slowSpeed() {
+        if (!runsSlow()) {
+            return Optional.empty();
+        }
+        return Optional.of(lift.designSpeed().scaled(Policy.SLOW_RUNNING));
+    }
+
+    /**
      * Whether a hold for one reason can come off on this reading. A wind hold waits for the wind to
      * come back {@link Policy#WIND_REOPEN_MARGIN} inside the limit rather than to the limit itself.
      *
@@ -190,14 +228,17 @@ public record WeatherHold(Lift lift, Observation observation) {
         return reasons().stream().anyMatch(reason -> !reason.clearsOnReading());
     }
 
-    /** Such as {@code JP clear} or {@code JP held: gust, crosswind}. */
+    /** Such as {@code JP clear}, {@code JP slow: gust} or {@code JP held: gust, crosswind}. */
     @Override
     public String toString() {
-        if (mayRun()) {
+        List<Hold> named = isHeld() ? holds() : slowings();
+        String state = isHeld() ? " held: " : " slow: ";
+        if (named.isEmpty()) {
             return lift.code() + " clear";
         }
-        return lift.code() + " held: "
-                + holds().stream().map(hold -> hold.reason().value()).collect(Collectors.joining(", "));
+        return lift.code()
+                + state
+                + named.stream().map(hold -> hold.reason().value()).collect(Collectors.joining(", "));
     }
 
     private Optional<Hold> icingHold() {

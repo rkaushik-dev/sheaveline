@@ -61,6 +61,22 @@ public record Limit<M extends Comparable<M>>(
     }
 
     /**
+     * Whether the figure is inside the limit but not yet back to the reopening figure, which is
+     * where a machine still running is slowed down rather than stopped.
+     *
+     * @param decision the machine read against a reading
+     * @return the figure, told the way a hold would tell it, or empty when it is past the limit or
+     *     clear of the margin
+     */
+    public Optional<Hold> near(WeatherHold decision) {
+        Optional<M> allowed = limit.apply(decision);
+        if (allowed.isEmpty() || check(decision).isPresent() || clears(decision)) {
+            return Optional.empty();
+        }
+        return Optional.of(new Hold(reason, describe.apply(reading.apply(decision), allowed.get())));
+    }
+
+    /**
      * Whether a hold for this reason can come off on the reading.
      *
      * @param decision the machine read against the latest reading

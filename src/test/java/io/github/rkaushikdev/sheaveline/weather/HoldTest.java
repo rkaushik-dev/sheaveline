@@ -127,6 +127,42 @@ class HoldTest {
     }
 
     @Test
+    void aGustInsideTheMarginRunsTheMachineSlow() {
+        WeatherHold near = weather().wind("W 20G43").held();
+        assertThat(near.mayRun()).isTrue();
+        assertThat(near.runsSlow()).isTrue();
+        assertThat(near.slowings()).containsExactly(new Hold(HoldReason.GUST, "43 mph against a limit of 45 mph"));
+        assertThat(near.slowSpeed()).contains(johnPaul().designSpeed().scaled("0.7"));
+        assertThat(near).hasToString("JP slow: gust");
+    }
+
+    @Test
+    void aMachineWellInsideItsLimitsRunsAtSpeed() {
+        WeatherHold calm = weather().wind("W 20G40").held();
+        assertThat(calm.runsSlow()).isFalse();
+        assertThat(calm.slowings()).isEmpty();
+        assertThat(calm.slowSpeed()).isEmpty();
+        assertThat(calm).hasToString("JP clear");
+    }
+
+    @Test
+    void aHeldMachineIsNotAlsoSlowed() {
+        WeatherHold gale = weather().wind(ACROSS + " 30G43").held();
+        assertThat(gale.isHeld()).isTrue();
+        assertThat(gale.reasons()).containsExactly(HoldReason.CROSSWIND);
+        assertThat(gale.slowings()).isEmpty();
+        assertThat(gale.runsSlow()).isFalse();
+    }
+
+    @Test
+    void aCrosswindInsideTheMarginSlowsTheMachineOnItsOwn() {
+        WeatherHold across = weather().wind(ACROSS + " 29").held();
+        assertThat(across.isHeld()).isFalse();
+        assertThat(across.slowings()).extracting(Hold::reason).containsExactly(HoldReason.CROSSWIND);
+        assertThat(WeatherHold.GUST.near(across)).isEmpty();
+    }
+
+    @Test
     void aQuietDayHoldsNothing() {
         WeatherHold clear = held();
         assertThat(clear.mayRun()).isTrue();

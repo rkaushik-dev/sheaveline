@@ -198,6 +198,26 @@ class RouteWeatherTest {
     }
 
     @Test
+    void aGustCloseToTheLimitRunsTheMachineSlowAndSaysWhy() {
+        record(reading().with("wind", "20 mph").with("gust", "43 mph"));
+        JsonNode body = hold("JP");
+        assertThat(body.get("held")).isEqualTo(Http.FALSE);
+        assertThat(body.get("run_slow")).isEqualTo(Http.TRUE);
+        assertThat(body.get("slow_speed").asText()).isEqualTo("700 fpm");
+        assertThat(Http.texts(body.get("slowing"), "reason")).containsExactly("gust");
+        assertThat(body.get("slowing").get(0).get("detail").asText()).isEqualTo("43 mph against a limit of 45 mph");
+    }
+
+    @Test
+    void aQuietReadingRunsAtFullSpeed() {
+        record(reading());
+        JsonNode body = hold("JP");
+        assertThat(body.get("run_slow")).isEqualTo(Http.FALSE);
+        assertThat(body.get("slow_speed")).isEqualTo(Http.NULL);
+        assertThat(body.get("slowing")).isEqualTo(Http.tree("[]"));
+    }
+
+    @Test
     void aLightningHoldSaysItRunsOnAClock() {
         record(reading().with("lightning_within", "20000 ft"));
         JsonNode body = hold("JP");

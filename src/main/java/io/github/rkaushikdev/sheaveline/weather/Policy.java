@@ -3,6 +3,7 @@ package io.github.rkaushikdev.sheaveline.weather;
 import io.github.rkaushikdev.sheaveline.measures.Length;
 import io.github.rkaushikdev.sheaveline.measures.Speed;
 import io.github.rkaushikdev.sheaveline.plant.LiftClass;
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
@@ -28,6 +29,12 @@ public final class Policy {
      * hour, so a gusty afternoon does not open and close the machine every reading.
      */
     public static final Speed WIND_REOPEN_MARGIN = Speed.ofMilesPerHour(5);
+
+    /**
+     * The share of its design speed a machine is slowed to while the wind is inside the reopening
+     * margin and not past the limit: seven tenths, which steadies the carriers through the towers.
+     */
+    public static final BigDecimal SLOW_RUNNING = new BigDecimal("0.7");
 
     /** Every class's row, in class order. */
     public static final Map<LiftClass, ClassPolicy> TABLE = table();
