@@ -58,6 +58,21 @@ public final class Verdict {
                     value -> value.compareTo(WATCHED_STRETCH) > 0,
                     Verdict::layOpened));
 
+    /** The trace rows, the loss of area before the local faults. */
+    public static final List<TraceRule> TRACE_RULES = List.of(
+            new TraceRule(
+                    "loss of area",
+                    MagneticTest::peakLoss,
+                    MagneticTest.LMA_CONDEMN,
+                    MagneticTest.LMA_WATCH,
+                    value -> value + "% loss of area"),
+            new TraceRule(
+                    "local fault",
+                    test -> BigDecimal.valueOf(test.wiresInOneLay()),
+                    BigDecimal.valueOf(MagneticTest.LOCAL_FAULT_CONDEMN),
+                    BigDecimal.valueOf(MagneticTest.LOCAL_FAULT_WATCH),
+                    value -> value + " wires broken inside one lay"));
+
     private Verdict() {}
 
     /**
@@ -112,27 +127,17 @@ public final class Verdict {
     }
 
     /**
-     * What fires on a magnetic test: the peak loss of metallic area and the largest local fault, each
-     * against its condemning and its watch threshold.
+     * What fires on a magnetic test: the peak loss of metallic area, and the most wires the local
+     * faults add up to inside one lay, each at the worse of its two levels.
      *
      * @param test the test
-     * @return the findings, the loss before the fault
+     * @return the findings, the loss before the faults
      */
     public static List<Finding> testFindings(MagneticTest test) {
-        List<Finding> found = new ArrayList<>();
-        BigDecimal loss = test.peakLoss();
-        int fault = test.largestFault();
-        if (loss.compareTo(MagneticTest.LMA_CONDEMN) > 0) {
-            found.add(new Finding("magnetic test", WearVerdict.CONDEMNED, loss + "% loss of area"));
-        } else if (loss.compareTo(MagneticTest.LMA_WATCH) > 0) {
-            found.add(new Finding("magnetic test", WearVerdict.MONITOR, loss + "% loss of area"));
-        }
-        if (fault > MagneticTest.LOCAL_FAULT_CONDEMN) {
-            found.add(new Finding("magnetic test", WearVerdict.CONDEMNED, fault + " wire fault"));
-        } else if (fault > MagneticTest.LOCAL_FAULT_WATCH) {
-            found.add(new Finding("magnetic test", WearVerdict.MONITOR, fault + " wire fault"));
-        }
-        return List.copyOf(found);
+        return TRACE_RULES.stream()
+                .map(rule -> rule.check(test))
+                .flatMap(Optional::stream)
+                .toList();
     }
 
     /**

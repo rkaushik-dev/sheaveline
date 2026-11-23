@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.github.rkaushikdev.sheaveline.measures.Length;
 import io.github.rkaushikdev.sheaveline.measures.Load;
 import io.github.rkaushikdev.sheaveline.plant.HaulRope;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -130,6 +131,44 @@ class VerdictTest {
         MagneticTest both =
                 magnetic(Indication.loss(Length.ofFeet(1800), "10.4"), Indication.fault(Length.ofFeet(2400), 3));
         assertThat(Verdict.assessTest(both)).isSameAs(WearVerdict.CONDEMNED);
+    }
+
+    @Test
+    void twoSmallFaultsInsideOneLayCondemnTheRopeTogether() {
+        Length lay = ROPE.spec().layLength();
+        MagneticTest apart =
+                magnetic(Indication.fault(Length.ofFeet(2400), 3), Indication.fault(Length.ofFeet(3600), 2));
+        MagneticTest together = magnetic(
+                Indication.fault(Length.ofFeet(2400), 3),
+                Indication.fault(Length.ofFeet(2400).plus(lay.scaled("0.5")), 2));
+        assertThat(Verdict.assessTest(apart)).isSameAs(WearVerdict.MONITOR);
+        assertThat(Verdict.assessTest(together)).isSameAs(WearVerdict.CONDEMNED);
+        assertThat(Verdict.testFindings(together))
+                .extracting(Finding::detail)
+                .containsExactly("5 wires broken inside one lay");
+    }
+
+    @Test
+    void aTraceReadingFindsOnceAtItsWorseLevel() {
+        MagneticTest gone = magnetic(Indication.loss(Length.ofFeet(1800), "10.4"));
+        assertThat(Verdict.testFindings(gone)).singleElement().satisfies(found -> {
+            assertThat(found.verdict()).isSameAs(WearVerdict.CONDEMNED);
+            assertThat(found.source()).isEqualTo("magnetic test");
+            assertThat(found.detail()).isEqualTo("10.4% loss of area");
+        });
+        assertThat(Verdict.TRACE_RULES).extracting(TraceRule::name).containsExactly("loss of area", "local fault");
+    }
+
+    @Test
+    void aTraceRowCannotWatchAboveWhereItCondemns() {
+        assertThatThrownBy(() -> new TraceRule(
+                        "loss of area", MagneticTest::peakLoss, BigDecimal.ONE, BigDecimal.TEN, String::valueOf))
+                .isInstanceOf(RopeworkError.class);
+        TraceRule row = Verdict.TRACE_RULES.get(0);
+        assertThat(row.judge(BigDecimal.valueOf(6))).isSameAs(WearVerdict.SERVICEABLE);
+        assertThat(row.judge(new BigDecimal("6.1"))).isSameAs(WearVerdict.MONITOR);
+        assertThat(row.judge(BigDecimal.valueOf(10))).isSameAs(WearVerdict.MONITOR);
+        assertThat(row.judge(new BigDecimal("10.1"))).isSameAs(WearVerdict.CONDEMNED);
     }
 
     @Test

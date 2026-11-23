@@ -130,6 +130,36 @@ public record MagneticTest(
                 .intValue();
     }
 
+    /**
+     * The most broken wires the trace shows inside any one lay length, adding up local faults that
+     * sit within a lay of each other.
+     *
+     * <p>The instrument writes a separate step for every group of breaks it can tell apart, so two
+     * two wire faults six inches apart come back as two marks. The discard count is per lay, and on
+     * the rope they are four wires gone from one lay.
+     *
+     * @return the number of wires, zero when the trace shows no local fault
+     */
+    public int wiresInOneLay() {
+        List<Indication> faults = ofKind(IndicationKind.LOCAL_FAULT).stream()
+                .sorted(Comparator.comparingLong(mark -> mark.station().mils()))
+                .toList();
+        long lay = rope.spec().layLength().mils();
+        int worst = 0;
+        for (int first = 0; first < faults.size(); first++) {
+            long start = faults.get(first).station().mils();
+            int wires = 0;
+            for (int next = first; next < faults.size(); next++) {
+                if (faults.get(next).station().mils() - start > lay) {
+                    break;
+                }
+                wires += faults.get(next).magnitude().intValue();
+            }
+            worst = Math.max(worst, wires);
+        }
+        return worst;
+    }
+
     /** Such as {@code FAT-2019-04412 tested 2025-01-15, 2 marks}. */
     @Override
     public String toString() {

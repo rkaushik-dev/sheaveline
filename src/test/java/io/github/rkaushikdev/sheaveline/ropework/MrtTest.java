@@ -85,6 +85,24 @@ class MrtTest {
     }
 
     @Test
+    void faultsInsideOneLayAddUpAndFaultsALayApartDoNot() {
+        Length lay = ROPE.spec().layLength();
+        Indication first = Indication.fault(Length.ofFeet(2400), 2);
+        Indication close = Indication.fault(Length.ofFeet(2400).plus(lay), 2);
+        Indication apart = Indication.fault(Length.ofFeet(2400).plus(lay).plus(Length.ofMils(1)), 2);
+        assertThat(magneticTest(first, close).wiresInOneLay()).isEqualTo(4);
+        assertThat(magneticTest(first, apart).wiresInOneLay()).isEqualTo(2);
+        assertThat(magneticTest(first, close).largestFault()).isEqualTo(2);
+    }
+
+    @Test
+    void theLayGroupIsReadInStationOrderWhateverOrderTheReportGaveIt() {
+        MagneticTest walked = magneticTest(fault(4000, 1), fault(600, 3), loss(2400, "5"), fault(4000, 2));
+        assertThat(walked.wiresInOneLay()).isEqualTo(3);
+        assertThat(magneticTest(loss(600, "2.0")).wiresInOneLay()).isZero();
+    }
+
+    @Test
     void anUntestedRopeIsDueFourYearsAfterItWentOn() {
         RetestSchedule schedule = new RetestSchedule(ROPE);
         assertThat(schedule.nextDue(LocalDate.of(2021, 1, 1))).isEqualTo(LocalDate.of(2023, 10, 4));
