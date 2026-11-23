@@ -2,9 +2,9 @@ package io.github.rkaushikdev.sheaveline.ropework;
 
 import io.github.rkaushikdev.sheaveline.util.Decimals;
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * The one place that says what the rope file makes of a survey.
@@ -100,20 +100,22 @@ public final class Verdict {
 
     /**
      * Every broken wire station that fires: condemning for one over the allowance, monitor for one
-     * over the watch level.
+     * over the watch level. Each finding names the station and every limit it is over.
      *
      * @param survey the survey
      * @return the findings, condemning ones first
      */
     public static List<Finding> breakFindings(BreakSurvey survey) {
-        List<Finding> found = new ArrayList<>();
-        for (BreakObservation seen : survey.exceedances()) {
-            found.add(new Finding("broken wires", WearVerdict.CONDEMNED, seen.toString()));
-        }
-        for (BreakObservation seen : survey.nearLimit()) {
-            found.add(new Finding("broken wires", WearVerdict.MONITOR, seen.toString()));
-        }
-        return List.copyOf(found);
+        BreakLimits allowed = survey.limits();
+        BreakLimits watched = allowed.watchLevel();
+        return Stream.concat(
+                        survey.exceedances().stream().map(seen -> breakFinding(seen, WearVerdict.CONDEMNED, allowed)),
+                        survey.nearLimit().stream().map(seen -> breakFinding(seen, WearVerdict.MONITOR, watched)))
+                .toList();
+    }
+
+    private static Finding breakFinding(BreakObservation seen, WearVerdict verdict, BreakLimits limits) {
+        return new Finding("broken wires", verdict, seen + ", " + String.join(", ", seen.breaches(limits)));
     }
 
     /**

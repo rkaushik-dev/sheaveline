@@ -2,6 +2,8 @@ package io.github.rkaushikdev.sheaveline.ropework;
 
 import io.github.rkaushikdev.sheaveline.measures.Length;
 import io.github.rkaushikdev.sheaveline.util.Decimals;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -57,16 +59,32 @@ public record BreakObservation(Length station, int inOneLay, int inSixLays, int 
      * @return true when any count is over
      */
     public boolean exceeds(BreakLimits limits) {
-        if (inOneLay > limits.oneLay()) {
-            return true;
+        return !breaches(limits).isEmpty();
+    }
+
+    /**
+     * Which of a set of limits the counts are over, said the way the inspector reads them back.
+     *
+     * @param limits the allowance
+     * @return one line a limit passed, such as {@code 7 in one lay against 6}, in the order the
+     *     standard lists them, empty when the station is inside every one
+     */
+    public List<String> breaches(BreakLimits limits) {
+        Objects.requireNonNull(limits, "limits");
+        List<String> over = new ArrayList<>();
+        over(over, inOneLay, limits.oneLay(), "in one lay");
+        over(over, inSixLays, limits.sixLays(), "in six lays");
+        over(over, valleyBreaks, limits.valley(), "in the valleys");
+        if (atSplice) {
+            over(over, inOneLay, limits.atSplice(), "in one lay at the splice");
         }
-        if (inSixLays > limits.sixLays()) {
-            return true;
+        return List.copyOf(over);
+    }
+
+    private static void over(List<String> over, int counted, int allowed, String where) {
+        if (counted > allowed) {
+            over.add(counted + " " + where + " against " + allowed);
         }
-        if (valleyBreaks > limits.valley()) {
-            return true;
-        }
-        return atSplice && inOneLay > limits.atSplice();
     }
 
     /** Such as {@code 3 in one lay at 600 ft at the splice}. */

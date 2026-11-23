@@ -3,6 +3,7 @@ package io.github.rkaushikdev.sheaveline.ropework;
 import static io.github.rkaushikdev.sheaveline.Hill.johnPaul;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import io.github.rkaushikdev.sheaveline.measures.Length;
 import io.github.rkaushikdev.sheaveline.plant.HaulRope;
@@ -112,6 +113,49 @@ class BreaksTest {
         assertThat(spliced(0, 3, true).exceeds(limits)).isTrue();
         assertThat(spliced(0, 2, true).exceeds(limits)).isFalse();
         assertThat(spliced(0, 3, false).exceeds(limits)).isFalse();
+    }
+
+    @Test
+    void aStationInsideEveryLimitBreachesNone() {
+        assertThat(seen(0, 5, 9).breaches(BreakLimits.forSpec(ROPE.spec()))).isEmpty();
+    }
+
+    @Test
+    void aStationSaysEveryLimitItIsOverInTheStandardsOrder() {
+        BreakLimits limits = BreakLimits.forSpec(ROPE.spec());
+        assertThat(seen(0, 7, 13, 2, true).breaches(limits))
+                .containsExactly(
+                        "7 in one lay against 6",
+                        "13 in six lays against 12",
+                        "2 in the valleys against 1",
+                        "7 in one lay at the splice against 2");
+        assertThat(seen(0, 4, 13).breaches(limits)).containsExactly("13 in six lays against 12");
+    }
+
+    @Test
+    void theSpliceLimitIsOnlyReadAtTheSplice() {
+        BreakLimits limits = BreakLimits.forSpec(ROPE.spec());
+        assertThat(spliced(0, 3, true).breaches(limits)).containsExactly("3 in one lay at the splice against 2");
+        assertThat(spliced(0, 3, false).breaches(limits)).isEmpty();
+    }
+
+    @Test
+    void aLangLayStationIsReadAgainstItsOwnHalvedAllowance() {
+        BreakLimits limits = BreakLimits.forSpec(langRope().spec());
+        assertThat(seen(0, 4, 4).breaches(limits)).containsExactly("4 in one lay against 3");
+        assertThat(seen(0, 4, 4).breaches(BreakLimits.forSpec(ROPE.spec()))).isEmpty();
+    }
+
+    @Test
+    void aBrokenWireFindingSaysTheStationAndWhatItIsOver() {
+        BreakSurvey walked = survey(seen(1200, 7, 9), seen(2400, 4, 7));
+        assertThat(Verdict.breakFindings(walked))
+                .extracting(Finding::verdict, Finding::detail)
+                .containsExactly(
+                        tuple(WearVerdict.CONDEMNED, "7 in one lay at 1200 ft, 7 in one lay against 6"),
+                        tuple(
+                                WearVerdict.MONITOR,
+                                "4 in one lay at 2400 ft, 4 in one lay against 3, 7 in six lays against 6"));
     }
 
     @Test
