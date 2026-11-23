@@ -1,6 +1,7 @@
 package io.github.rkaushikdev.sheaveline.api.routes;
 
 import io.github.rkaushikdev.sheaveline.api.Lookup;
+import io.github.rkaushikdev.sheaveline.api.RequestRejected;
 import io.github.rkaushikdev.sheaveline.api.Requires;
 import io.github.rkaushikdev.sheaveline.api.Role;
 import io.github.rkaushikdev.sheaveline.api.Settings;
@@ -28,6 +29,7 @@ import io.github.rkaushikdev.sheaveline.measures.LoadPerFoot;
 import io.github.rkaushikdev.sheaveline.measures.Speed;
 import io.github.rkaushikdev.sheaveline.plant.Lift;
 import io.github.rkaushikdev.sheaveline.util.Decimals;
+import io.github.rkaushikdev.sheaveline.weather.Policy;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -76,6 +78,7 @@ public class CapacityController {
      * @param code the machine
      * @param carriers how many carriers to ask about; the machine's own when not given
      * @param speed the rope speed to ask about; its design speed when not given
+     * @param slowed whether to ask at the speed the machine is slowed to for wind instead
      * @param look the request's lookup
      * @return the spacing, against the class floor
      */
@@ -85,9 +88,10 @@ public class CapacityController {
             @PathVariable String code,
             @RequestParam(required = false) @Min(1) Integer carriers,
             @RequestParam Optional<String> speed,
+            @RequestParam(defaultValue = "false") boolean slowed,
             Lookup look) {
         Lift lift = look.lift(code);
-        LineSpacing line = spacingOf(lift, Optional.ofNullable(carriers), speed);
+        LineSpacing line = spacingOf(lift, Optional.ofNullable(carriers), speedOf(lift, speed, slowed));
         return new SpacingOut(
                 line.carriers(),
                 line.speed(),
@@ -105,6 +109,8 @@ public class CapacityController {
      * @param code the machine
      * @param carriers how many carriers to ask about; the machine's own when not given
      * @param speed the rope speed to ask about; its design speed when not given
+     * @param slowed whether to ask at the speed the machine is slowed to for wind instead, which is
+     *     the figure the ticket office wants on a gusty afternoon
      * @param occupancy the share of seats filled
      * @param look the request's lookup
      * @return the figures, three ways
@@ -115,10 +121,11 @@ public class CapacityController {
             @PathVariable String code,
             @RequestParam(required = false) @Min(1) Integer carriers,
             @RequestParam Optional<String> speed,
+            @RequestParam(defaultValue = "false") boolean slowed,
             @RequestParam(defaultValue = "0.85") String occupancy,
             Lookup look) {
         Lift lift = look.lift(code);
-        LineSpacing line = spacingOf(lift, Optional.ofNullable(carriers), speed);
+        LineSpacing line = spacingOf(lift, Optional.ofNullable(carriers), speedOf(lift, speed, slowed));
         UphillCapacity figures = new UphillCapacity(line, lift.carriers().kind().seats(), Decimals.of(occupancy));
         return new CapacityOut(
                 line.carriers(),
@@ -190,9 +197,25 @@ public class CapacityController {
         return StagingOut.of(Staging.stage(profile, pool, Length.ZERO, today, body.seatsFilled()));
     }
 
-    private static LineSpacing spacingOf(Lift lift, Optional<Integer> carriers, Optional<String> speed) {
-        LineSpacing line = speed.isPresent() ? LineSpacing.of(lift, Speed.parse(speed.get())) : LineSpacing.of(lift);
-        return carriers.isPresent() ? line.withCarriers(carriers.get()) : line;
+    /**
+     * The rope speed a question is asked at: the one given, the machine's wind slowed speed, or its
+     * design speed.
+     *
+     * @throws RequestRejected when both a speed and the slowed speed are asked for
+     */
+    private static Speed speedOf(Lift lift, Optional<String> speed, boolean slowed) {
+        if (speed.isPresent() && slowed) {
+            throw new RequestRejected("slowed", "ask at a speed or at the slowed speed, not both");
+        }
+        if (slowed) {
+            return Policy.slowedSpeed(lift);
+        }
+        return speed.map(Speed::parse).orElse(lift.designSpeed());
+    }
+
+    private static LineSpacing spacingOf(Lift lift, Optional<Integer> carriers, Speed speed) {
+        LineSpacing line = LineSpacing.of(lift, speed);
+        return carriers.map(line::withCarriers).orElse(line);
     }
 
     /** The weight per foot of the loaded line: the rope, with a loaded carrier at every spacing. */

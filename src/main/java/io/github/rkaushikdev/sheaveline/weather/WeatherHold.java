@@ -196,13 +196,10 @@ public record WeatherHold(Lift lift, Observation observation) {
     /**
      * The rope speed the machine is slowed to.
      *
-     * @return {@link Policy#SLOW_RUNNING} of its design speed when it runs slow, otherwise empty
+     * @return the {@link Policy#slowedSpeed(Lift) slowed speed} when it runs slow, otherwise empty
      */
     public Optional<Speed> slowSpeed() {
-        if (!runsSlow()) {
-            return Optional.empty();
-        }
-        return Optional.of(lift.designSpeed().scaled(Policy.SLOW_RUNNING));
+        return runsSlow() ? Optional.of(Policy.slowedSpeed(lift)) : Optional.empty();
     }
 
     /**

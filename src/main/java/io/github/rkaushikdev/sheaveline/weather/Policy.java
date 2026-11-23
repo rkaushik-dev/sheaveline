@@ -2,6 +2,7 @@ package io.github.rkaushikdev.sheaveline.weather;
 
 import io.github.rkaushikdev.sheaveline.measures.Length;
 import io.github.rkaushikdev.sheaveline.measures.Speed;
+import io.github.rkaushikdev.sheaveline.plant.Lift;
 import io.github.rkaushikdev.sheaveline.plant.LiftClass;
 import java.math.BigDecimal;
 import java.util.Collections;
@@ -40,6 +41,16 @@ public final class Policy {
     public static final Map<LiftClass, ClassPolicy> TABLE = table();
 
     private Policy() {}
+
+    /**
+     * The rope speed one machine is slowed to for wind.
+     *
+     * @param lift the machine
+     * @return {@link #SLOW_RUNNING} of its design speed
+     */
+    public static Speed slowedSpeed(Lift lift) {
+        return lift.designSpeed().scaled(SLOW_RUNNING);
+    }
 
     /**
      * The row for one class. Every class has one.

@@ -79,6 +79,37 @@ class RouteCapacityTest {
     }
 
     @Test
+    void theSpacingCanBeAskedAtTheWindSlowedSpeed() {
+        JsonNode slowed = body("/lifts/JP/spacing?slowed=true");
+        JsonNode full = body("/lifts/JP/spacing");
+        assertThat(slowed.get("speed").asText()).isEqualTo("700 fpm");
+        assertThat(slowed.get("spacing")).isEqualTo(full.get("spacing"));
+        assertThat(slowed.get("interval").asText())
+                .isGreaterThan(full.get("interval").asText());
+    }
+
+    @Test
+    void theCapacityAtTheWindSlowedSpeedIsTheTicketOfficesFigure() {
+        JsonNode full = body("/lifts/JP/capacity");
+        JsonNode slowed = body("/lifts/JP/capacity?slowed=true");
+        JsonNode asked = body("/lifts/JP/capacity?speed=700+fpm");
+        assertThat(slowed.get("speed").asText()).isEqualTo("700 fpm");
+        assertThat(slowed.get("persons_per_hour")).isEqualTo(asked.get("persons_per_hour"));
+        assertThat(slowed.get("persons_per_hour").asInt())
+                .isLessThan(full.get("persons_per_hour").asInt())
+                .isGreaterThan(full.get("persons_per_hour").asInt() * 6 / 10);
+        assertThat(body("/lifts/JP/capacity?slowed=false").get("speed").asText())
+                .isEqualTo("1000 fpm");
+    }
+
+    @Test
+    void aSpeedAndTheSlowedSpeedTogetherAreRefused() {
+        Http.Answer reply = client.get("/lifts/JP/capacity?slowed=true&speed=500+fpm", Wire.headers());
+        assertThat(reply.status()).isEqualTo(422);
+        assertThat(reply.json().get("field").asText()).isEqualTo("slowed");
+    }
+
+    @Test
     void theClassFloorComesBackWithTheAnswer() {
         JsonNode quad = body("/lifts/JP/spacing");
         JsonNode triple = body("/lifts/SB/spacing");

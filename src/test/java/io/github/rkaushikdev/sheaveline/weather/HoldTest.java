@@ -67,6 +67,16 @@ class HoldTest {
     }
 
     @Test
+    void theSlowedSpeedIsSevenTenthsOfTheDesignSpeedForEveryMachine() {
+        for (Lift lift : List.of(johnPaul(), strawberry(), wildcat())) {
+            assertThat(Policy.slowedSpeed(lift))
+                    .as(lift.code().toString())
+                    .isEqualTo(lift.designSpeed().scaled("0.7"));
+        }
+        assertThat(reading().wind("W 20G43").held().slowSpeed()).contains(Policy.slowedSpeed(johnPaul()));
+    }
+
+    @Test
     void aMachineWellInsideItsLimitsRunsAtSpeed() {
         WeatherHold calm = reading().wind("W 20G40").held();
         assertThat(calm.runsSlow()).isFalse();
