@@ -64,14 +64,15 @@ public record Morning(LocalDate day, String resort, String snow, List<MachineLin
     }
 
     /**
-     * Every open work order that keeps a machine from carrying the public.
+     * Every open work order that keeps a machine from carrying the public this morning, an urgent
+     * order past its deadline included.
      *
      * @return the orders, machine by machine
      */
     public List<WorkOrder> urgentOrders() {
         return machines.stream()
                 .flatMap(machine -> machine.orders().stream())
-                .filter(order -> order.priority().stopsTheMachine())
+                .filter(order -> order.stopsTheMachine(day))
                 .toList();
     }
 

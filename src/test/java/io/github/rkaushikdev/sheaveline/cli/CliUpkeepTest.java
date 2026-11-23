@@ -134,6 +134,17 @@ class CliUpkeepTest {
     }
 
     @Test
+    void aDriveDefectLeftPastItsThreeDaysShowsAsStoppingTheMachine() {
+        found("JP-DRV:defect:service brake lining worn to the rivets");
+        Shell.Reply raised = run("upkeep", "raise", "JP", "JP-DRV", "--by", "R Skaggs");
+        assertThat(raised.output()).contains("urgent", "due by    2025-01-18");
+        assertThat(run("upkeep", "board", "--on", "2025-01-18").output())
+                .contains("open")
+                .doesNotContain("stopping");
+        assertThat(run("upkeep", "board", "--on", "2025-01-19").output()).contains("stopping");
+    }
+
+    @Test
     void theBoardCanBeAskedAboutOneMachine() {
         found("JP-T4:defect:liner cracked on the outer sheave");
         run("upkeep", "raise", "JP", "JP-T4", "--by", "R Skaggs");

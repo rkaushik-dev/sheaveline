@@ -338,7 +338,7 @@ final class UpkeepCommands {
                         one.detail(),
                         one.priority().value(),
                         one.dueBy().toString(),
-                        one.isOverdue(when) ? "overdue" : "open"));
+                        state(one, when)));
             }
             console.page(Table.of(
                             List.of(
@@ -378,5 +378,13 @@ final class UpkeepCommands {
             console.say(closed.toString());
             return Main.OK;
         }
+    }
+
+    /** How an open order stands on a day: stopping the machine, overdue, or just open. */
+    private static String state(WorkOrder order, LocalDate on) {
+        if (order.stopsTheMachine(on)) {
+            return "stopping";
+        }
+        return order.isOverdue(on) ? "overdue" : "open";
     }
 }

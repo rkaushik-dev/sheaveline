@@ -194,6 +194,25 @@ class MorningTest {
         assertThat(page.urgentOrders()).extracting(WorkOrder::number).containsExactly(1, 2);
     }
 
+    @Test
+    void anUrgentOrderPastItsThreeDaysIsGatheredWithTheImmediateOnes() {
+        WorkOrder late = new WorkOrder(
+                3,
+                JOHN_PAUL,
+                DAY.minusDays(4),
+                "M Vetter",
+                "gearbox weeping oil at the output seal",
+                Priority.URGENT,
+                Optional.of("JP-DRV"),
+                Optional.empty(),
+                Optional.empty());
+        WorkOrder fresh = order(4, STRAWBERRY, Priority.URGENT);
+        Morning page = morning(
+                machine().lift(JOHN_PAUL).orders(late),
+                machine().lift(STRAWBERRY).name("Strawberry").orders(fresh));
+        assertThat(page.urgentOrders()).extracting(WorkOrder::number).containsExactly(3);
+    }
+
     /** One machine's morning, built the way a test wants it. */
     private static final class Machine {
 

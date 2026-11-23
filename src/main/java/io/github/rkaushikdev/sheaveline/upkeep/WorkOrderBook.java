@@ -168,13 +168,15 @@ public record WorkOrderBook(List<WorkOrder> orders) {
     }
 
     /**
-     * The machines an open order keeps from carrying the public.
+     * The machines an open order keeps from carrying the public on a day, an urgent order that has
+     * run past its deadline included.
      *
+     * @param on the day asked about
      * @return an unmodifiable set, in code order
      */
-    public Set<LiftCode> holdingMachines() {
+    public Set<LiftCode> holdingMachines(LocalDate on) {
         Set<LiftCode> held = openOrders().stream()
-                .filter(order -> order.priority().stopsTheMachine())
+                .filter(order -> order.stopsTheMachine(on))
                 .map(WorkOrder::lift)
                 .collect(Collectors.toCollection(TreeSet::new));
         return Collections.unmodifiableSet(held);

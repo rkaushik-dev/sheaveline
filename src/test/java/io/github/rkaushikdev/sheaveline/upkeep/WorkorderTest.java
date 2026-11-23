@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.rkaushikdev.sheaveline.plant.LiftCode;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -242,9 +243,9 @@ class WorkorderTest {
     @Test
     void anOpenImmediateOrderHoldsTheMachine() {
         WorkOrderBook book = WorkOrderBook.of(List.of(order(1, Priority.IMMEDIATE)));
-        assertThat(book.holdingMachines()).contains(JOHN_PAUL);
+        assertThat(book.holdingMachines(RAISED)).contains(JOHN_PAUL);
         WorkOrderBook after = book.close(1, LocalDate.of(2025, 1, 16), "M Vetter");
-        assertThat(after.holdingMachines()).isEmpty();
+        assertThat(after.holdingMachines(RAISED.plusDays(1))).isEmpty();
     }
 
     @Test
@@ -258,7 +259,43 @@ class WorkorderTest {
     @Test
     void aSeriousDefectRaisedAsAnOrderHoldsTheMachineAtOnce() {
         WorkOrderBook book = WorkOrderBook.of().raiseFrom(JOHN_PAUL, defect(DefectLevel.SERIOUS), "M Vetter");
-        assertThat(book.holdingMachines()).isEqualTo(Set.of(JOHN_PAUL));
+        assertThat(book.holdingMachines(RAISED)).isEqualTo(Set.of(JOHN_PAUL));
         assertThat(book.get(1).isOverdue(LocalDate.of(2025, 1, 16))).isTrue();
+    }
+
+    @Test
+    void anUrgentOrderStopsTheMachineTheDayAfterItWasDue() {
+        WorkOrder urgent = order(1, Priority.URGENT);
+        assertThat(urgent.dueBy()).isEqualTo(RAISED.plusDays(3));
+        assertThat(urgent.stopsTheMachine(RAISED.plusDays(3))).isFalse();
+        assertThat(urgent.stopsTheMachine(RAISED.plusDays(4))).isTrue();
+        assertThat(urgent.close(RAISED.plusDays(5), "M Vetter").stopsTheMachine(RAISED.plusDays(6)))
+                .isFalse();
+        WorkOrderBook book = WorkOrderBook.of(List.of(urgent, order(2, Priority.SCHEDULED, STRAWBERRY)));
+        assertThat(book.holdingMachines(RAISED.plusDays(3))).isEmpty();
+        assertThat(book.holdingMachines(RAISED.plusDays(40))).isEqualTo(Set.of(JOHN_PAUL));
+    }
+
+    @Test
+    void onlyAnUrgentOrderStopsTheMachineForRunningLate() {
+        assertThat(Arrays.stream(Priority.values()).filter(Priority::stopsTheMachineWhenOverdue))
+                .containsExactly(Priority.URGENT);
+        assertThat(order(1, Priority.IMMEDIATE).stopsTheMachine(RAISED)).isTrue();
+        assertThat(order(1, Priority.ROUTINE).stopsTheMachine(RAISED.plusYears(1)))
+                .isFalse();
+    }
+
+    @Test
+    void aDefectInTheDriveTerminalIsUrgentRatherThanScheduled() {
+        Defect brake = new Defect("JP-DRV", DefectLevel.DEFECT, "service brake lining worn to the rivets", RAISED);
+        Defect tower = new Defect("JP-T4", DefectLevel.DEFECT, "liner cracked", RAISED);
+        assertThat(Priority.forDefect(brake)).isSameAs(Priority.URGENT);
+        assertThat(Priority.forDefect(tower)).isSameAs(Priority.SCHEDULED);
+        assertThat(Priority.forDefect(new Defect("jp-drv ", DefectLevel.SERIOUS, "brake will not hold", RAISED)))
+                .isSameAs(Priority.IMMEDIATE);
+        assertThat(Priority.forDefect(new Defect("JP-DRV", DefectLevel.OBSERVATION, "paint", RAISED)))
+                .isSameAs(Priority.ROUTINE);
+        assertThat(WorkOrder.fromDefect(1, JOHN_PAUL, brake, "M Vetter").priority())
+                .isSameAs(Priority.URGENT);
     }
 }

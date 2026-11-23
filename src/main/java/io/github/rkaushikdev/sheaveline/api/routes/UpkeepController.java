@@ -145,7 +145,7 @@ public class UpkeepController {
         WorkOrder order = WorkOrder.fromDefect(work.workOrders().nextNumber(), lift, defect, body.raisedBy());
         work.workOrders().add(order);
         work.commit();
-        return WorkOrderOut.of(order);
+        return WorkOrderOut.of(order, settings.today());
     }
 
     /**
@@ -174,7 +174,8 @@ public class UpkeepController {
         } else {
             found = work.workOrders().openOrders();
         }
-        return Paged.of(found.stream().map(WorkOrderOut::of).toList(), paging);
+        LocalDate today = settings.today();
+        return Paged.of(found.stream().map(one -> WorkOrderOut.of(one, today)).toList(), paging);
     }
 
     /**
@@ -189,7 +190,7 @@ public class UpkeepController {
         LocalDate today = settings.today();
         return work.workOrders().openOrders().stream()
                 .filter(one -> one.isOverdue(today))
-                .map(WorkOrderOut::of)
+                .map(one -> WorkOrderOut.of(one, today))
                 .toList();
     }
 
@@ -203,7 +204,7 @@ public class UpkeepController {
     @GetMapping("/work-orders/{number}")
     @Requires(Role.READER)
     public WorkOrderOut readOrder(@PathVariable int number, Lookup look) {
-        return WorkOrderOut.of(look.workOrder(number));
+        return WorkOrderOut.of(look.workOrder(number), settings.today());
     }
 
     /**
@@ -222,6 +223,6 @@ public class UpkeepController {
         look.workOrder(number);
         WorkOrder closed = work.workOrders().close(number, body.closed(), body.closedBy());
         work.commit();
-        return WorkOrderOut.of(closed);
+        return WorkOrderOut.of(closed, settings.today());
     }
 }

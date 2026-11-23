@@ -99,7 +99,7 @@ public record WorkOrder(
                 defect.raised(),
                 raisedBy,
                 defect.detail(),
-                Priority.forLevel(defect.level()),
+                Priority.forDefect(defect),
                 Optional.of(defect.where()),
                 Optional.empty(),
                 Optional.empty());
@@ -132,6 +132,20 @@ public record WorkOrder(
      */
     public boolean isOverdue(LocalDate on) {
         return closed.map(day -> day.isAfter(dueBy())).orElseGet(() -> on.isAfter(dueBy()));
+    }
+
+    /**
+     * Whether the order keeps the machine from carrying the public on a day: an open immediate order
+     * always does, and an open urgent order does from the day after it was due.
+     *
+     * @param on the day asked about
+     * @return true while it is open and one of those
+     */
+    public boolean stopsTheMachine(LocalDate on) {
+        if (!isOpen()) {
+            return false;
+        }
+        return priority.stopsTheMachine() || (priority.stopsTheMachineWhenOverdue() && isOverdue(on));
     }
 
     /**

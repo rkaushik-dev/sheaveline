@@ -18,7 +18,8 @@ import java.util.Optional;
  * @param dueBy the day it is due
  * @param open whether it is still to be done
  * @param closed the day it was finished, once it has been
- * @param holdsTheMachine whether the machine stays stopped until it is done
+ * @param holdsTheMachine whether the machine stays stopped until it is done, as at the service's
+ *     today, which an urgent order past its deadline does
  */
 public record WorkOrderOut(
         int number,
@@ -37,9 +38,10 @@ public record WorkOrderOut(
      * An order as the tablet shows it.
      *
      * @param order the order
+     * @param today the day it is read on
      * @return its shape
      */
-    public static WorkOrderOut of(WorkOrder order) {
+    public static WorkOrderOut of(WorkOrder order, LocalDate today) {
         return new WorkOrderOut(
                 order.number(),
                 order.lift(),
@@ -51,6 +53,6 @@ public record WorkOrderOut(
                 order.dueBy(),
                 order.isOpen(),
                 order.closed(),
-                order.isOpen() && order.priority().stopsTheMachine());
+                order.stopsTheMachine(today));
     }
 }
