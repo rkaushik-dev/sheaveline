@@ -8,6 +8,7 @@ import io.github.rkaushikdev.sheaveline.Office;
 import io.github.rkaushikdev.sheaveline.ParseError;
 import io.github.rkaushikdev.sheaveline.measures.Length;
 import io.github.rkaushikdev.sheaveline.reports.Forms;
+import io.github.rkaushikdev.sheaveline.ropework.BreakObservation;
 import io.github.rkaushikdev.sheaveline.ropework.DiameterReading;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -141,6 +142,50 @@ class CliRopeTest {
         assertThat(reply.output())
                 .contains("verdict monitor", "  monitor local reduction: 3.2% under the rest of the rope");
         assertThat(walked("2025-02-15", "1.376").output()).doesNotContain("  monitor", "  condemned");
+    }
+
+    @Test
+    void aCountReadsInTheOrderOfTheCountSheet() {
+        assertThat(RopeCommands.parseCount("1200 ft:4:7")).isEqualTo(new BreakObservation(Length.ofFeet(1200), 4, 7));
+        assertThat(RopeCommands.parseCount("0 ft:2:3:1:splice"))
+                .isEqualTo(new BreakObservation(Length.ofFeet(0), 2, 3, 1, true));
+        assertThat(RopeCommands.parseCount("600 ft:2:3:1"))
+                .isEqualTo(new BreakObservation(Length.ofFeet(600), 2, 3, 1, false));
+        for (String bad : List.of("1200 ft:4", "1200 ft:four:7", "0 ft:2:3:1:tower", "0 ft:1:1:0:splice:x")) {
+            assertThatThrownBy(() -> RopeCommands.parseCount(bad)).as(bad).isInstanceOf(ParseError.class);
+        }
+    }
+
+    @Test
+    void breaksCountedOnTheWalkAreFiledAndJudgedWithIt() {
+        Shell.Reply reply = run(
+                "rope",
+                "walk",
+                SERIAL,
+                "--taken",
+                "2025-01-15",
+                "--inspector",
+                "R Halvorsen",
+                "--reading",
+                "0 ft:1.376 in:1.376 in",
+                "--breaks",
+                "2400 ft:7:9",
+                "--breaks",
+                "4800 ft:1:1");
+        assertThat(reply.code()).isZero();
+        assertThat(reply.output())
+                .contains(
+                        "2 stations counted, 8 breaks in one lay",
+                        "verdict condemned",
+                        "  condemned broken wires: 7 in one lay at 2400 ft, 7 in one lay against 6");
+        assertThat(run("rope", "file", SERIAL).output())
+                .contains("broken wire counts", "standing                 condemned");
+    }
+
+    @Test
+    void aWalkWithNoCountsFilesNoCount() {
+        walked("2025-01-15", "1.376");
+        assertThat(run("rope", "file", SERIAL).output()).doesNotContain("broken wire counts");
     }
 
     @Test

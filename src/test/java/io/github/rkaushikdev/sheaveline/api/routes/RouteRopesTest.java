@@ -8,7 +8,12 @@ import io.github.rkaushikdev.sheaveline.api.Http;
 import io.github.rkaushikdev.sheaveline.api.Role;
 import io.github.rkaushikdev.sheaveline.api.Settings;
 import io.github.rkaushikdev.sheaveline.api.Wire;
+import io.github.rkaushikdev.sheaveline.measures.Length;
 import io.github.rkaushikdev.sheaveline.persistence.UnitOfWork;
+import io.github.rkaushikdev.sheaveline.plant.HaulRope;
+import io.github.rkaushikdev.sheaveline.ropework.BreakObservation;
+import io.github.rkaushikdev.sheaveline.ropework.BreakSurvey;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -31,9 +36,11 @@ class RouteRopesTest {
 
     private Http client;
 
+    private Settings built;
+
     @BeforeEach
     void putTheRopesOnFile() {
-        Settings built = Wire.settings();
+        built = Wire.settings();
         try (UnitOfWork work = UnitOfWork.on(built.database()).open()) {
             work.lifts().add(Hill.johnPaul());
             work.lifts().add(Hill.strawberry());
@@ -195,5 +202,31 @@ class RouteRopesTest {
         assertThat(body.get("may_run")).isEqualTo(Http.FALSE);
         assertThat(body.get("sources")).isEqualTo(Http.tree("[\"diameter\"]"));
         assertThat(body.get("findings").get(0).get("source").asText()).isEqualTo("diameter");
+    }
+
+    @Test
+    void theRopeFileReadsTheLatestBrokenWireCountToo() {
+        HaulRope rope = Hill.johnPaul().rope();
+        try (UnitOfWork work = UnitOfWork.on(built.database()).open()) {
+            work.breakSurveys()
+                    .add(BreakSurvey.of(
+                            rope,
+                            LocalDate.of(2024, 12, 1),
+                            "R Halvorsen",
+                            List.of(new BreakObservation(Length.ofFeet(2400), 7, 9))));
+            work.breakSurveys()
+                    .add(BreakSurvey.of(
+                            rope,
+                            LocalDate.of(2025, 1, 15),
+                            "R Halvorsen",
+                            List.of(new BreakObservation(Length.ofFeet(2400), 4, 7))));
+            work.commit();
+        }
+        JsonNode body = client.get("/ropes/" + SERIAL + "/file", Wire.headers()).json();
+        assertThat(body.get("verdict").asText()).isEqualTo("monitor");
+        assertThat(body.get("may_run")).isEqualTo(Http.TRUE);
+        assertThat(body.get("sources")).isEqualTo(Http.tree("[\"broken wires\"]"));
+        assertThat(body.get("findings").get(0).get("detail").asText())
+                .isEqualTo("4 in one lay at 2400 ft, 4 in one lay against 3, 7 in six lays against 6");
     }
 }

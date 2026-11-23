@@ -167,6 +167,16 @@ public final class UnitOfWork implements AutoCloseable {
     }
 
     /**
+     * The broken wire counts.
+     *
+     * @return a repository on this unit's session
+     * @throws StorageError when the unit is not open
+     */
+    public BreakSurveyRepository breakSurveys() {
+        return new BreakSurveyRepository(session());
+    }
+
+    /**
      * The incidents and their filings.
      *
      * @return a repository on this unit's session

@@ -12,6 +12,8 @@ import io.github.rkaushikdev.sheaveline.reports.Align;
 import io.github.rkaushikdev.sheaveline.reports.Column;
 import io.github.rkaushikdev.sheaveline.reports.RopeFilePage;
 import io.github.rkaushikdev.sheaveline.reports.Table;
+import io.github.rkaushikdev.sheaveline.ropework.BreakObservation;
+import io.github.rkaushikdev.sheaveline.ropework.BreakSurvey;
 import io.github.rkaushikdev.sheaveline.ropework.DiameterReading;
 import io.github.rkaushikdev.sheaveline.ropework.Finding;
 import io.github.rkaushikdev.sheaveline.ropework.Retirement;
@@ -50,11 +52,48 @@ final class RopeCommands {
      * @throws ParseError when it does not have three parts or a part does not read
      */
     static DiameterReading parseReading(String text) {
-        String[] parts = text.split(":", -1);
-        if (parts.length != 3) {
-            throw new ParseError(text, "a reading written station:crowns:valleys");
-        }
+        String[] parts = parts(text, 3, 3, "a reading written station:crowns:valleys");
         return new DiameterReading(Length.parse(parts[0]), Length.parse(parts[1]), Length.parse(parts[2]));
+    }
+
+    /**
+     * Read station:one lay:six lays, then the valley breaks and the word {@code splice} when they
+     * apply, the order the count sheet has its columns in.
+     *
+     * @param text the count as typed, such as {@code 1200 ft:4:7} or {@code 0 ft:2:2:0:splice}
+     * @return the count
+     * @throws ParseError when it has too few or too many parts, a count is not a whole number, or
+     *     the fifth part is not {@code splice}
+     */
+    static BreakObservation parseCount(String text) {
+        String wanted = "a count written station:one lay:six lays[:valleys[:splice]]";
+        String[] parts = parts(text, 3, 5, wanted);
+        int valleys = parts.length > 3 ? count(parts[3], text, wanted) : 0;
+        if (parts.length > 4 && !parts[4].strip().equals("splice")) {
+            throw new ParseError(text, wanted);
+        }
+        return new BreakObservation(
+                Length.parse(parts[0]),
+                count(parts[1], text, wanted),
+                count(parts[2], text, wanted),
+                valleys,
+                parts.length > 4);
+    }
+
+    private static String[] parts(String text, int fewest, int most, String wanted) {
+        String[] parts = text.split(":", -1);
+        if (parts.length < fewest || parts.length > most) {
+            throw new ParseError(text, wanted);
+        }
+        return parts;
+    }
+
+    private static int count(String part, String text, String wanted) {
+        try {
+            return Integer.parseInt(part.strip());
+        } catch (NumberFormatException notWhole) {
+            throw new ParseError(text, wanted);
+        }
     }
 
     /** The haul ropes and what has been done to them. */
@@ -124,7 +163,7 @@ final class RopeCommands {
                         console.today(),
                         machine,
                         work.wearSurveys().forRope(held),
-                        List.of(),
+                        work.breakSurveys().forRope(held),
                         List.of(),
                         Optional.empty());
             }
@@ -134,7 +173,14 @@ final class RopeCommands {
     }
 
     /** Record a caliper walk and print what it says about the rope. */
-    @Command(name = "walk", description = "Record a caliper walk and print what it says about the rope.")
+    @Command(
+            name = "walk",
+            description = {
+                "Record a caliper walk and print what it says about the rope.",
+                "",
+                "Broken wires counted on the same walk go in with --breaks, one station each, and are"
+                        + " filed as that day's count."
+            })
     static final class WalkRope implements Action {
 
         @Parameters(paramLabel = "SERIAL")
@@ -153,26 +199,41 @@ final class RopeCommands {
                 description = "One caliper reading. Give it once a station.")
         private List<String> readings;
 
+        @Option(
+                names = "--breaks",
+                paramLabel = "STATION:ONE:SIX[:VALLEYS[:splice]]",
+                description = "Broken wires counted at one station. Give it once a station where any were found.")
+        private List<String> counts = new ArrayList<>();
+
         @Override
         public int run(Console console) {
-            HaulRope held;
+            List<DiameterReading> walked =
+                    readings.stream().map(RopeCommands::parseReading).toList();
+            List<BreakObservation> counted =
+                    counts.stream().map(RopeCommands::parseCount).toList();
             WearSurvey survey;
+            Optional<BreakSurvey> breaks;
             try (UnitOfWork work = console.work()) {
-                held = Common.haulRope(work, serial);
-                survey = WearSurvey.of(
-                        held,
-                        taken,
-                        inspector,
-                        readings.stream().map(RopeCommands::parseReading).toList());
+                HaulRope held = Common.haulRope(work, serial);
+                survey = WearSurvey.of(held, taken, inspector, walked);
+                breaks = counted.isEmpty()
+                        ? Optional.empty()
+                        : Optional.of(BreakSurvey.of(held, taken, inspector, counted));
                 work.wearSurveys().add(survey);
+                breaks.ifPresent(work.breakSurveys()::add);
                 work.commit();
             }
             DiameterReading smallest = survey.smallest();
-            console.say(survey.diameters().size() + " readings recorded against " + held.serial());
+            console.say(walked.size() + " readings recorded against "
+                    + survey.rope().serial());
             console.say("smallest " + smallest.mean().formatInches(3)
                     + " at " + wholeFeet(smallest.station()) + " ft, "
                     + Decimals.fixed(survey.smallestPercent(), 1) + "% of nominal");
-            List<Finding> found = Verdict.wearFindings(survey);
+            List<Finding> found = new ArrayList<>(Verdict.wearFindings(survey));
+            breaks.ifPresent(count -> {
+                console.say(counted.size() + " stations counted, " + count.totalBreaks() + " breaks in one lay");
+                found.addAll(Verdict.breakFindings(count));
+            });
             console.say("verdict " + Verdict.worstOf(found).value());
             found.forEach(one -> console.say("  " + one.verdict().value() + " " + one));
             return Main.OK;

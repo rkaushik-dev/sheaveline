@@ -17,6 +17,8 @@ import io.github.rkaushikdev.sheaveline.plant.HaulRope;
 import io.github.rkaushikdev.sheaveline.plant.Lift;
 import io.github.rkaushikdev.sheaveline.plant.LiftCode;
 import io.github.rkaushikdev.sheaveline.plant.RopeSerial;
+import io.github.rkaushikdev.sheaveline.ropework.BreakObservation;
+import io.github.rkaushikdev.sheaveline.ropework.BreakSurvey;
 import io.github.rkaushikdev.sheaveline.ropework.DiameterReading;
 import io.github.rkaushikdev.sheaveline.ropework.WearSurvey;
 import io.github.rkaushikdev.sheaveline.upkeep.Priority;
@@ -191,6 +193,32 @@ class RepositoriesTest {
                 .containsExactly(LocalDate.of(2024, 12, 1), LocalDate.of(2025, 1, 15));
         assertThat(surveys.latest(rope).taken()).isEqualTo(LocalDate.of(2025, 1, 15));
         assertThat(surveys.countFor(rope)).isEqualTo(2);
+    }
+
+    @Test
+    void brokenWireCountsComeBackInDayOrderWithEveryStation() {
+        stocked();
+        HaulRope rope = johnPaul().rope();
+        BreakSurveyRepository counts = new BreakSurveyRepository(session);
+        counts.add(BreakSurvey.of(
+                rope,
+                LocalDate.of(2025, 1, 15),
+                "R Halvorsen",
+                List.of(
+                        new BreakObservation(Length.ofFeet(2400), 4, 7),
+                        new BreakObservation(Length.ofFeet(0), 2, 2, 1, true))));
+        counts.add(BreakSurvey.of(rope, LocalDate.of(2024, 12, 1), "R Halvorsen"));
+        session.commit();
+        List<BreakSurvey> found = counts.forRope(rope);
+        assertThat(found)
+                .extracting(BreakSurvey::taken)
+                .containsExactly(LocalDate.of(2024, 12, 1), LocalDate.of(2025, 1, 15));
+        assertThat(found.get(0).observations()).isEmpty();
+        assertThat(found.get(1).observations())
+                .containsExactly(
+                        new BreakObservation(Length.ofFeet(0), 2, 2, 1, true),
+                        new BreakObservation(Length.ofFeet(2400), 4, 7));
+        assertThat(counts.forRope(strawberry().rope())).isEmpty();
     }
 
     @Test

@@ -12,6 +12,7 @@ import io.github.rkaushikdev.sheaveline.api.schemas.WearSurveyIn;
 import io.github.rkaushikdev.sheaveline.api.schemas.WearSurveyOut;
 import io.github.rkaushikdev.sheaveline.persistence.UnitOfWork;
 import io.github.rkaushikdev.sheaveline.plant.HaulRope;
+import io.github.rkaushikdev.sheaveline.ropework.BreakSurvey;
 import io.github.rkaushikdev.sheaveline.ropework.RopeFile;
 import io.github.rkaushikdev.sheaveline.ropework.Verdict;
 import io.github.rkaushikdev.sheaveline.ropework.WearSurvey;
@@ -123,7 +124,7 @@ public class RopesController {
     }
 
     /**
-     * What the rope's file says about it, read off the latest walk.
+     * What the rope's file says about it, read off the latest walk and the latest broken wire count.
      *
      * @param serial its serial
      * @param work the request's unit of work
@@ -134,8 +135,15 @@ public class RopesController {
     @Requires(Role.READER)
     public RopeFileOut readFile(@PathVariable String serial, UnitOfWork work, Lookup look) {
         HaulRope rope = look.rope(serial);
+        RopeFile held = new RopeFile();
         List<WearSurvey> surveys = work.wearSurveys().forRope(rope);
-        RopeFile held = surveys.isEmpty() ? new RopeFile() : new RopeFile().withWear(surveys.getLast());
+        if (!surveys.isEmpty()) {
+            held = held.withWear(surveys.getLast());
+        }
+        List<BreakSurvey> counts = work.breakSurveys().forRope(rope);
+        if (!counts.isEmpty()) {
+            held = held.withBreaks(counts.getLast());
+        }
         return new RopeFileOut(
                 rope.serial(),
                 held.verdict().value(),
