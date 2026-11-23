@@ -15,6 +15,7 @@ import io.github.rkaushikdev.sheaveline.plant.LiftCode;
 import io.github.rkaushikdev.sheaveline.weather.HoldRecord;
 import io.github.rkaushikdev.sheaveline.weather.HoldRegister;
 import jakarta.persistence.TypedQuery;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -305,17 +306,23 @@ public final class DayLogRepository extends Repository {
     }
 
     /**
-     * Write the day's meter reading.
+     * Write the day's meter reading, checked against the reading before it.
      *
      * @param reading the reading
+     * @return the hours it adds to the machine, zero for the first reading on file
      * @throws StorageError when the machine was already read that day
+     * @throws io.github.rkaushikdev.sheaveline.ops.OperationsError when the reading is more hours on
+     *     from the one before it than the days between them hold
      */
-    public void readMeter(MeterReading reading) {
+    public BigDecimal readMeter(MeterReading reading) {
         if (first(meterQuery(reading.lift(), reading.day())).isPresent()) {
             throw new StorageError(reading.lift() + " was already read on " + reading.day());
         }
+        BigDecimal added =
+                meters(reading.lift()).map(history -> history.check(reading)).orElse(BigDecimal.ZERO);
         session().persist(OpsMapper.meterToRow(reading));
         session().flush();
+        return added;
     }
 
     /**

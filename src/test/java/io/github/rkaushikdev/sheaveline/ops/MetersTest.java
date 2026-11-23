@@ -107,6 +107,39 @@ class MetersTest {
     }
 
     @Test
+    void aFallThatWouldBeMoreHoursThanTheDaysHoldIsAMisreadNotAWrap() {
+        MeterHistory held = history(reading(1, "40016.0"), reading(2, "40010.0"));
+        assertThatThrownBy(held::hoursRun)
+                .isInstanceOf(OperationsError.class)
+                .hasMessage("40010.0 after 40016.0 is 99994.0 hours in 1 days, more than the clock holds,"
+                        + " so it is a misread rather than a wrap");
+        assertThat(held.rollovers()).isEqualTo(1);
+    }
+
+    @Test
+    void aRiseFasterThanTheClockIsAMisreadToo() {
+        assertThatThrownBy(() ->
+                        history(reading(1, "42000.0"), reading(2, "42024.1")).hoursRun())
+                .isInstanceOf(OperationsError.class);
+        assertThat(history(reading(1, "42000.0"), reading(2, "42024.0")).hoursRun())
+                .isEqualByComparingTo("24.0");
+        assertThat(history(reading(1, "42000.0"), reading(4, "42070.0")).hoursRun())
+                .isEqualByComparingTo("70.0");
+    }
+
+    @Test
+    void aNewReadingIsCheckedAgainstTheOneBeforeItsDay() {
+        MeterHistory held = history(reading(1, "42000.0"), reading(5, "42040.0"));
+        assertThat(held.check(reading(3, "42020.0"))).isEqualByComparingTo("20.0");
+        assertThat(held.check(reading(6, "42049.5"))).isEqualByComparingTo("9.5");
+        assertThat(history(reading(5)).check(reading(1, "1.0"))).isEqualByComparingTo("0");
+        assertThatThrownBy(() -> held.check(reading(6, "42030.0"))).isInstanceOf(OperationsError.class);
+        assertThatThrownBy(() -> held.check(reading(6, "42049.5", 1, false, STRAWBERRY)))
+                .isInstanceOf(OperationsError.class)
+                .hasMessage("SB does not belong in a JP history");
+    }
+
+    @Test
     void aReplacedMeterIsReadFromZero() {
         MeterHistory held = history(reading(1, "42000.0", 1_000_000), reading(2, "9.5", 100, true));
         assertThat(held.hoursRun()).isEqualByComparingTo("9.5");

@@ -334,6 +334,17 @@ class RepoDayLogTest {
     }
 
     @Test
+    void aReadingTheClockCannotHoldIsNotWritten() {
+        assertThat(logs.readMeter(reading(DAY, "40120.5", 1_402_000))).isEqualByComparingTo("0");
+        assertThat(logs.readMeter(reading(DAY.plusDays(1), "40130.0", 1_406_000)))
+                .isEqualByComparingTo("9.5");
+        session.commit();
+        assertThatThrownBy(() -> logs.readMeter(reading(DAY.plusDays(2), "40129.0", 1_410_000)))
+                .isInstanceOf(OperationsError.class);
+        assertThat(logs.meterOn(JOHN_PAUL, DAY.plusDays(2))).isEmpty();
+    }
+
+    @Test
     void aDayNobodyReadTheMeterOn() {
         assertThat(logs.meterOn(JOHN_PAUL, DAY)).isEmpty();
     }

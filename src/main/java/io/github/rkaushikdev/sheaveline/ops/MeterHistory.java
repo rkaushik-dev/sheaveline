@@ -7,6 +7,7 @@ import io.github.rkaushikdev.sheaveline.util.Decimals;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -26,6 +27,8 @@ import java.util.Set;
  * @param readings the readings, oldest first
  */
 public record MeterHistory(LiftCode lift, List<MeterReading> readings) {
+
+    private static final long HOURS_A_DAY = 24;
 
     /**
      * A history of one machine, read once a day.
@@ -105,20 +108,53 @@ public record MeterHistory(LiftCode lift, List<MeterReading> readings) {
     /**
      * Hours between two readings, allowing for a wrap or a new meter.
      *
+     * <p>A fall in the hours is a wrap only when the step across the wrap fits in the days between
+     * the readings. Forty thousand and ten read the morning after forty thousand and sixteen is not
+     * ninety nine thousand nine hundred and ninety four hours in a day, it is somebody who misread
+     * the dial, and taking it as a wrap would put every hour based job on the machine years overdue.
+     *
      * @param earlier the earlier reading
      * @param later the later reading
      * @return what a new meter reads, or the difference, or the difference across the wrap
-     * @throws OperationsError when the readings are the wrong way round
+     * @throws OperationsError when the readings are the wrong way round, or the step is more hours
+     *     than the days between them hold
      */
     public BigDecimal step(MeterReading earlier, MeterReading later) {
         requireInOrder(earlier, later);
         if (later.meterReplaced()) {
             return later.hours();
         }
-        if (later.hours().compareTo(earlier.hours()) >= 0) {
-            return later.hours().subtract(earlier.hours());
+        BigDecimal step = wrapped(earlier, later)
+                ? MeterReading.METER_ROLLOVER.subtract(earlier.hours()).add(later.hours())
+                : later.hours().subtract(earlier.hours());
+        BigDecimal most = mostHours(earlier, later);
+        if (step.compareTo(most) > 0) {
+            throw new OperationsError(later.hours() + " after " + earlier.hours() + " is " + step + " hours in "
+                    + ChronoUnit.DAYS.between(earlier.day(), later.day()) + " days, more than the clock holds,"
+                    + " so it is a misread rather than a wrap");
         }
-        return MeterReading.METER_ROLLOVER.subtract(earlier.hours()).add(later.hours());
+        return step;
+    }
+
+    /**
+     * Check a new reading against the one before it, before it goes in the book.
+     *
+     * @param next the new reading
+     * @return the hours it adds, zero when there is no reading before it
+     * @throws OperationsError when it is for another machine, or the step from the reading before it
+     *     cannot be right
+     */
+    public BigDecimal check(MeterReading next) {
+        if (!next.lift().equals(lift)) {
+            throw new OperationsError(next.lift() + " does not belong in a " + lift + " history");
+        }
+        MeterReading before = null;
+        for (MeterReading reading : readings) {
+            if (reading.day().isBefore(next.day())) {
+                before = reading;
+            }
+        }
+        return before == null ? BigDecimal.ZERO : step(before, next);
     }
 
     /**
@@ -204,9 +240,7 @@ public record MeterHistory(LiftCode lift, List<MeterReading> readings) {
     public int rollovers() {
         int count = 0;
         for (int at = 1; at < readings.size(); at++) {
-            MeterReading later = readings.get(at);
-            if (!later.meterReplaced()
-                    && later.hours().compareTo(readings.get(at - 1).hours()) < 0) {
+            if (wrapped(readings.get(at - 1), readings.get(at))) {
                 count += 1;
             }
         }
@@ -241,6 +275,15 @@ public record MeterHistory(LiftCode lift, List<MeterReading> readings) {
      */
     public int size() {
         return readings.size();
+    }
+
+    private static boolean wrapped(MeterReading earlier, MeterReading later) {
+        return !later.meterReplaced() && later.hours().compareTo(earlier.hours()) < 0;
+    }
+
+    private static BigDecimal mostHours(MeterReading earlier, MeterReading later) {
+        long days = Math.max(1, ChronoUnit.DAYS.between(earlier.day(), later.day()));
+        return BigDecimal.valueOf(HOURS_A_DAY * days);
     }
 
     private static void requireInOrder(MeterReading earlier, MeterReading later) {

@@ -176,6 +176,20 @@ class CliDayTest {
     }
 
     @Test
+    void aReadingSaysTheHoursItAddsAndAMisreadIsRefused() {
+        started();
+        assertThat(run("day", "meter", "JP", "40120.5", "1402000", "--by", "R Skaggs", "--on", ON)
+                        .output())
+                .contains("0 hours since the last reading");
+        Shell.Reply next = run("day", "meter", "JP", "40129.0", "1406000", "--by", "R Skaggs", "--on", "2025-01-16");
+        assertThat(next.code()).isZero();
+        assertThat(next.output()).contains("40129.0", "8.5 hours since the last reading");
+        Shell.Reply misread = run("day", "meter", "JP", "40120.0", "1410000", "--by", "R Skaggs", "--on", "2025-01-17");
+        assertThat(misread.code()).isEqualTo(1);
+        assertThat(misread.output()).contains("misread rather than a wrap");
+    }
+
+    @Test
     void whatIsStoppedRightNow() {
         started();
         assertThat(run("day", "open-stops").output()).contains("nothing is stopped");

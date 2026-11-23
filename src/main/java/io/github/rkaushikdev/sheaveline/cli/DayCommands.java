@@ -20,6 +20,7 @@ import io.github.rkaushikdev.sheaveline.reports.Table;
 import io.github.rkaushikdev.sheaveline.schedule.OperatingWindow;
 import io.github.rkaushikdev.sheaveline.schedule.TimeOfDay;
 import io.github.rkaushikdev.sheaveline.util.Decimals;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -311,11 +312,12 @@ final class DayCommands {
         public int run(Console console) {
             MeterReading reading =
                     new MeterReading(LiftCode.parse(code), on.dayOf(console), Decimals.of(hours), cycles, by, replaced);
+            BigDecimal added;
             try (UnitOfWork work = console.work()) {
-                work.dayLogs().readMeter(reading);
+                added = work.dayLogs().readMeter(reading);
                 work.commit();
             }
-            console.say(reading.toString());
+            console.say(reading + ", " + added + " hours since the last reading");
             return Main.OK;
         }
     }
