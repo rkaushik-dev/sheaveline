@@ -23,7 +23,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import picocli.CommandLine.Command;
@@ -309,12 +311,20 @@ final class CrewCommands {
             int unstaffed = 0;
             try (UnitOfWork work = console.work()) {
                 PersonnelFile held = work.personnel().file();
-                List<LiftCode> wanted = code != null && !code.isEmpty()
-                        ? List.of(LiftCode.parse(code))
-                        : work.lifts().codes();
+                Map<LiftCode, Roster> rosters = new LinkedHashMap<>();
+                for (LiftCode lift : work.lifts().codes()) {
+                    rosters.put(lift, work.personnel().roster(lift, when, window));
+                }
+                List<LiftCode> wanted =
+                        code != null && !code.isEmpty() ? List.of(LiftCode.parse(code)) : List.copyOf(rosters.keySet());
                 for (LiftCode lift : wanted) {
-                    Roster roster = work.personnel().roster(lift, when, window);
-                    RosterCheck check = new RosterCheck(roster, held, roster.liftClass(), when);
+                    Roster roster = rosters.computeIfAbsent(
+                            lift, one -> work.personnel().roster(one, when, window));
+                    List<Assignment> elsewhere = rosters.entrySet().stream()
+                            .filter(other -> !other.getKey().equals(lift))
+                            .flatMap(other -> other.getValue().assignments().stream())
+                            .toList();
+                    RosterCheck check = new RosterCheck(roster, held, roster.liftClass(), when, elsewhere);
                     console.say(lift + "  " + (check.isLegal() ? "legal" : "SHORT"));
                     if (check.isLegal()) {
                         continue;

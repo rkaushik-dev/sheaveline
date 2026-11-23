@@ -29,8 +29,11 @@ import java.util.Set;
  * @param file the cards
  * @param liftClass the class of machine the roster is for
  * @param on the day
+ * @param elsewhere the same day's shifts on every other machine, which is where a person who is
+ *     down twice at once is found
  */
-public record RosterCheck(Roster roster, PersonnelFile file, LiftClass liftClass, LocalDate on) {
+public record RosterCheck(
+        Roster roster, PersonnelFile file, LiftClass liftClass, LocalDate on, List<Assignment> elsewhere) {
 
     /**
      * A check of a roster against the cards.
@@ -42,9 +45,22 @@ public record RosterCheck(Roster roster, PersonnelFile file, LiftClass liftClass
         Objects.requireNonNull(file, "file");
         Objects.requireNonNull(liftClass, "liftClass");
         Objects.requireNonNull(on, "on");
+        elsewhere = List.copyOf(elsewhere);
         if (roster.liftClass() != liftClass) {
             throw new PeopleError("that roster is for another class of machine");
         }
+    }
+
+    /**
+     * A check of one machine's roster on its own, with no other machine's shifts to read against.
+     *
+     * @param roster the day's roster
+     * @param file the cards
+     * @param liftClass the class of machine the roster is for
+     * @param on the day
+     */
+    public RosterCheck(Roster roster, PersonnelFile file, LiftClass liftClass, LocalDate on) {
+        this(roster, file, liftClass, on, List.of());
     }
 
     /**
@@ -75,13 +91,36 @@ public record RosterCheck(Roster roster, PersonnelFile file, LiftClass liftClass
     }
 
     /**
+     * The people on this roster who are down on another machine at the same time.
+     *
+     * <p>The assign command warns about it as the shift goes in, but the warning scrolls off, and a
+     * roster built on Tuesday for Saturday is read on Thursday by somebody who never saw it.
+     *
+     * @return one problem a shift that overlaps one elsewhere, at the shift's start
+     */
+    public List<RosterProblem> doubleBooked() {
+        List<RosterProblem> found = new ArrayList<>();
+        for (Assignment one : roster.assignments()) {
+            boolean twice =
+                    elsewhere.stream().anyMatch(other -> other.person().equals(one.person()) && other.overlaps(one));
+            if (twice) {
+                found.add(new RosterProblem(
+                        ProblemKind.DOUBLE_BOOKED, one.post(), one.starts(), Optional.of(one.person())));
+            }
+        }
+        return List.copyOf(found);
+    }
+
+    /**
      * Everything wrong.
      *
-     * @return the uncovered posts, then the people without the cards
+     * @return the uncovered posts, then the people without the cards, then the people who are down
+     *     somewhere else at the same time
      */
     public List<RosterProblem> problems() {
         List<RosterProblem> all = new ArrayList<>(uncovered());
         all.addAll(uncarded());
+        all.addAll(doubleBooked());
         return List.copyOf(all);
     }
 
@@ -105,16 +144,18 @@ public record RosterCheck(Roster roster, PersonnelFile file, LiftClass liftClass
     }
 
     /**
-     * Who holds the card for a post and is free at a minute.
+     * Who holds the card for a post and is free at a minute, here and on every other machine.
      *
      * @param post the post
      * @param at the minute
      * @return the names, sorted
      */
     public List<String> coverFor(Post post, TimeOfDay at) {
-        List<String> qualified = file.qualifiedFor(post, liftClass, on);
         Set<String> busy = new HashSet<>(roster.peopleAt(at));
-        return qualified.stream().filter(name -> !busy.contains(name)).toList();
+        elsewhere.stream().filter(other -> other.covers(at)).forEach(other -> busy.add(other.person()));
+        return file.qualifiedFor(post, liftClass, on).stream()
+                .filter(name -> !busy.contains(name))
+                .toList();
     }
 
     /**

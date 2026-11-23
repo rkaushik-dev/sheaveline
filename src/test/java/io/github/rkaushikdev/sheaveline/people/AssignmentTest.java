@@ -73,6 +73,43 @@ class AssignmentTest {
     }
 
     @Test
+    void somebodyDownOnAnotherMachineAtTheSameTimeIsAProblem() {
+        Roster roster = Roster.of(
+                JOHN_PAUL, QUAD, DAY, WINDOW, List.of(shift("R Diaz", Post.BOTTOM), shift("T Woo", Post.TOP)));
+        List<Certificate> cards =
+                List.of(card("R Diaz", Endorsement.OPERATOR), card("T Woo", Endorsement.LEAD_OPERATOR));
+        Assignment elsewhere = new Assignment("T Woo", Post.BOTTOM, TimeOfDay.at(12), TimeOfDay.at(16));
+        RosterCheck read = new RosterCheck(roster, PersonnelFile.of(cards), QUAD, DAY, List.of(elsewhere));
+        assertThat(read.doubleBooked())
+                .containsExactly(
+                        new RosterProblem(ProblemKind.DOUBLE_BOOKED, Post.TOP, TimeOfDay.at(8), Optional.of("T Woo")));
+        assertThat(read.isLegal()).isFalse();
+        assertThat(read.problemsOf(ProblemKind.DOUBLE_BOOKED)).hasSize(1);
+        assertThat(read.problems().getLast()).hasToString("8:00 top operator: T Woo, on another machine at the time");
+    }
+
+    @Test
+    void aShiftElsewhereThatDoesNotOverlapIsNoProblem() {
+        Roster roster = Roster.of(JOHN_PAUL, QUAD, DAY, WINDOW, List.of(shift("R Diaz", Post.BOTTOM)));
+        Assignment evening = new Assignment("R Diaz", Post.BOTTOM, TimeOfDay.at(17), TimeOfDay.at(21));
+        RosterCheck read =
+                new RosterCheck(roster, PersonnelFile.of(List.of(card("R Diaz"))), QUAD, DAY, List.of(evening));
+        assertThat(read.doubleBooked()).isEmpty();
+        assertThat(clean().elsewhere()).isEmpty();
+    }
+
+    @Test
+    void somebodyWorkingAnotherMachineIsNotOfferedAsCover() {
+        Roster roster = Roster.of(JOHN_PAUL, QUAD, DAY, WINDOW, List.of(shift("R Diaz", Post.BOTTOM)));
+        List<Certificate> cards = List.of(
+                card("R Diaz"), card("T Woo", Endorsement.LEAD_OPERATOR), card("J Marsh", Endorsement.LEAD_OPERATOR));
+        Assignment busy = new Assignment("T Woo", Post.TOP, TimeOfDay.at(8), TimeOfDay.at(12));
+        RosterCheck read = new RosterCheck(roster, PersonnelFile.of(cards), QUAD, DAY, List.of(busy));
+        assertThat(read.coverFor(Post.TOP, TimeOfDay.at(10))).containsExactly("J Marsh");
+        assertThat(read.coverFor(Post.TOP, TimeOfDay.at(13))).containsExactly("J Marsh", "T Woo");
+    }
+
+    @Test
     void aRosterForAnotherClassIsRefused() {
         Roster roster = Roster.of(JOHN_PAUL, LiftClass.FIXED_CHAIR, DAY, WINDOW, List.of());
         assertThatThrownBy(() -> new RosterCheck(roster, PersonnelFile.of(), QUAD, DAY))

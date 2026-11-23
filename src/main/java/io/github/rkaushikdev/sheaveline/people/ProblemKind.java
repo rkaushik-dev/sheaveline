@@ -11,7 +11,9 @@ public enum ProblemKind implements Valued {
     /** Somebody whose card for the post does not cover this class of machine. */
     WRONG_CLASS("card does not cover the machine"),
     /** Somebody whose card for the post and the machine has run out. */
-    LAPSED("card has run out");
+    LAPSED("card has run out"),
+    /** Somebody down on another machine at the same time. */
+    DOUBLE_BOOKED("on another machine at the time");
 
     private final String value;
 

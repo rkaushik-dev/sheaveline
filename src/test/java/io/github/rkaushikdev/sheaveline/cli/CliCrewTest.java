@@ -184,4 +184,16 @@ class CliCrewTest {
         assertThat(reply.code()).isZero();
         assertThat(reply.output()).contains("JP  legal");
     }
+
+    @Test
+    void theGapFindsSomebodyDownOnTwoMachinesAtOnce() {
+        carded("D Chin", "operator");
+        carded("T Woo", "lead_operator");
+        manned("D Chin", "bottom", "JP");
+        manned("T Woo", "top", "JP");
+        manned("D Chin", "bottom", "SB");
+        Shell.Reply reply = run("crew", "gap", "JP", "--on", ON);
+        assertThat(reply.code()).isEqualTo(1);
+        assertThat(reply.output()).contains("JP  SHORT", "D Chin, on another machine at the time");
+    }
 }
