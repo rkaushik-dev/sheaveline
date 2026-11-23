@@ -183,6 +183,23 @@ public record ObservationLog(List<Observation> observations) {
     }
 
     /**
+     * The last reading that put a strike inside a distance, which is where a lightning clock runs
+     * from.
+     *
+     * @param radius how close a strike has to be to count
+     * @return the latest such reading, or empty when no reading put one that close
+     */
+    public Optional<Observation> lastStrikeWithin(Length radius) {
+        Optional<Observation> found = Optional.empty();
+        for (Observation seen : observations) {
+            if (seen.lightningWithin().filter(at -> at.compareTo(radius) <= 0).isPresent()) {
+                found = Optional.of(seen);
+            }
+        }
+        return found;
+    }
+
+    /**
      * The log with one more reading in it, put in its place by time.
      *
      * @param observation the new reading

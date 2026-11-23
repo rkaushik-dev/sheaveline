@@ -9,18 +9,23 @@ import io.github.rkaushikdev.sheaveline.api.Settings;
 import io.github.rkaushikdev.sheaveline.api.schemas.HoldOut;
 import io.github.rkaushikdev.sheaveline.api.schemas.ObservationIn;
 import io.github.rkaushikdev.sheaveline.api.schemas.ObservationOut;
+import io.github.rkaushikdev.sheaveline.api.schemas.OpenHoldOut;
 import io.github.rkaushikdev.sheaveline.api.schemas.StationIn;
 import io.github.rkaushikdev.sheaveline.api.schemas.StationOut;
 import io.github.rkaushikdev.sheaveline.measures.Duration;
 import io.github.rkaushikdev.sheaveline.persistence.UnitOfWork;
 import io.github.rkaushikdev.sheaveline.plant.Lift;
+import io.github.rkaushikdev.sheaveline.weather.HoldRecord;
+import io.github.rkaushikdev.sheaveline.weather.HoldRegister;
 import io.github.rkaushikdev.sheaveline.weather.Observation;
+import io.github.rkaushikdev.sheaveline.weather.ObservationLog;
 import io.github.rkaushikdev.sheaveline.weather.Station;
 import io.github.rkaushikdev.sheaveline.weather.WeatherHold;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -140,7 +145,8 @@ public class WeatherController {
 
     /**
      * Whether the weather holds a machine, read off the freshest reading at the station nearest its
-     * top terminal.
+     * top terminal, with every hold the day book still has open on it and whether that reading lets
+     * each one come off. A lightning hold is read against every reading since it was called.
      *
      * @param code the machine
      * @param now the moment it is; the start of the service's today when not given
@@ -161,6 +167,19 @@ public class WeatherController {
         LocalDateTime moment = now.orElseGet(() -> settings.today().atStartOfDay());
         Station station = work.weather().nearestTo(lift.top().ropeElevation());
         Observation seen = work.weather().latestFresh(station, moment, Duration.ofMinutes(staleAfterMinutes));
-        return HoldOut.of(new WeatherHold(lift, seen), moment);
+        WeatherHold decision = new WeatherHold(lift, seen);
+        HoldRegister register = work.dayLogs().holds(lift.code());
+        List<OpenHoldOut> open = new ArrayList<>();
+        for (HoldRecord hold : register.openHolds(lift.code())) {
+            List<Observation> readings = work.weather().since(hold.started(), station).stream()
+                    .filter(one -> !one.taken().isAfter(moment))
+                    .toList();
+            ObservationLog since = ObservationLog.of(readings.isEmpty() ? List.of(seen) : readings);
+            open.add(OpenHoldOut.of(
+                    hold,
+                    register.mayClear(hold, moment, since, decision),
+                    Optional.of(register.lightningClearsAt(hold, since))));
+        }
+        return HoldOut.of(decision, moment, open);
     }
 }

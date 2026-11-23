@@ -9,6 +9,9 @@ import io.github.rkaushikdev.sheaveline.api.Role;
 import io.github.rkaushikdev.sheaveline.api.Settings;
 import io.github.rkaushikdev.sheaveline.api.Wire;
 import io.github.rkaushikdev.sheaveline.persistence.UnitOfWork;
+import io.github.rkaushikdev.sheaveline.weather.HoldReason;
+import io.github.rkaushikdev.sheaveline.weather.HoldRecord;
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.StreamSupport;
@@ -30,9 +33,11 @@ class RouteWeatherTest {
 
     private Http client;
 
+    private Settings built;
+
     @BeforeEach
     void putTheMachinesAndTheStationsOnFile() {
-        Settings built = Wire.settings();
+        built = Wire.settings();
         try (UnitOfWork work = UnitOfWork.on(built.database()).open()) {
             work.lifts().add(Hill.johnPaul());
             work.lifts().add(Hill.strawberry());
@@ -227,6 +232,44 @@ class RouteWeatherTest {
                 .findFirst()
                 .orElseThrow();
         assertThat(bolt.get("clears_on_reading")).isEqualTo(Http.FALSE);
+    }
+
+    void called(HoldReason reason, String started) {
+        try (UnitOfWork work = UnitOfWork.on(built.database()).open()) {
+            work.dayLogs().callHold(new HoldRecord(Hill.JOHN_PAUL, reason, LocalDateTime.parse(started), "K Ostler"));
+            work.commit();
+        }
+    }
+
+    @Test
+    void anOpenLightningHoldRunsFromTheLastStrikeInTheLog() {
+        called(HoldReason.LIGHTNING, "2025-01-15T11:00:00");
+        record(reading().with("taken", "2025-01-15T11:20:00").with("lightning_within", "12000 ft"));
+        record(reading().with("taken", "2025-01-15T11:45:00"));
+        JsonNode open = client.get("/lifts/JP/hold?now=2025-01-15T11:46:00", Wire.headers())
+                .json()
+                .get("open_holds");
+        assertThat(open).hasSize(1);
+        assertThat(open.get(0).get("reason").asText()).isEqualTo("lightning");
+        assertThat(open.get(0).get("may_clear")).isEqualTo(Http.FALSE);
+        assertThat(open.get(0).get("clears_at").asText()).isEqualTo("2025-01-15T11:50:00");
+        JsonNode later = client.get("/lifts/JP/hold?now=2025-01-15T11:55:00", Wire.headers())
+                .json()
+                .get("open_holds");
+        assertThat(later.get(0).get("may_clear")).isEqualTo(Http.TRUE);
+    }
+
+    @Test
+    void anOpenGustHoldWaitsForTheMarginOnTheRoute() {
+        called(HoldReason.GUST, "2025-01-15T11:00:00");
+        record(reading().with("wind", "20 mph").with("gust", "43 mph"));
+        JsonNode body = hold("JP");
+        assertThat(body.get("held")).isEqualTo(Http.FALSE);
+        JsonNode gust = body.get("open_holds").get(0);
+        assertThat(gust.get("reason").asText()).isEqualTo("gust");
+        assertThat(gust.get("may_clear")).isEqualTo(Http.FALSE);
+        assertThat(gust.get("clears_at")).isEqualTo(Http.NULL);
+        assertThat(body.get("open_holds")).hasSize(1);
     }
 
     @Test

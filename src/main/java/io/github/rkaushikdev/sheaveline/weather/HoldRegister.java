@@ -126,11 +126,7 @@ public record HoldRegister(List<HoldRecord> records) {
     }
 
     /**
-     * Whether that one hold can come off, which depends on which hold it is.
-     *
-     * <p>A lightning hold comes off once the reading shows no strike and was taken at least {@link
-     * #LIGHTNING_WAIT} before the moment asked about. Any other hold comes off once the decision says
-     * it clears, which for wind is a margin inside the limit rather than the limit.
+     * Whether that one hold can come off, on the latest reading alone.
      *
      * @param hold the hold
      * @param now the moment asked about
@@ -139,13 +135,48 @@ public record HoldRegister(List<HoldRecord> records) {
      * @return false for a hold that is already closed
      */
     public boolean mayClear(HoldRecord hold, LocalDateTime now, Observation reading, WeatherHold decision) {
+        return mayClear(hold, now, ObservationLog.of(List.of(reading)), decision);
+    }
+
+    /**
+     * Whether that one hold can come off, which depends on which hold it is.
+     *
+     * <p>A lightning hold comes off {@link #LIGHTNING_WAIT} after the last strike inside {@link
+     * Policy#LIGHTNING_RADIUS}, read off every reading since the hold was called, and never while the
+     * latest of those readings still puts one there. A strike further off than the radius does not start the
+     * clock again, because it would not have held the machine. Any other hold comes off once the
+     * decision says it clears, which for wind is a margin inside the limit rather than the limit.
+     *
+     * @param hold the hold
+     * @param now the moment asked about
+     * @param readings the readings since the hold was called, at the station the decision read
+     * @param decision the machine read against the latest of them
+     * @return false for a hold that is already closed
+     */
+    public boolean mayClear(HoldRecord hold, LocalDateTime now, ObservationLog readings, WeatherHold decision) {
         if (!hold.isOpen()) {
             return false;
         }
         if (hold.reason() == HoldReason.LIGHTNING) {
-            return lightningServed(now, reading);
+            return !strikesNow(readings) && !now.isBefore(lightningClearsAt(hold, readings));
         }
         return decision.clears(hold.reason());
+    }
+
+    /**
+     * When a lightning hold may come off if nothing else strikes.
+     *
+     * @param hold the lightning hold
+     * @param readings the readings since it was called
+     * @return thirty minutes after the last strike inside the radius, or after the hold was called
+     *     when no reading since has put one there
+     */
+    public LocalDateTime lightningClearsAt(HoldRecord hold, ObservationLog readings) {
+        LocalDateTime last = readings.lastStrikeWithin(Policy.LIGHTNING_RADIUS)
+                .map(Observation::taken)
+                .filter(taken -> taken.isAfter(hold.started()))
+                .orElse(hold.started());
+        return last.plusSeconds(LIGHTNING_WAIT.seconds());
     }
 
     /**
@@ -216,10 +247,10 @@ public record HoldRegister(List<HoldRecord> records) {
         return records.size();
     }
 
-    private static boolean lightningServed(LocalDateTime now, Observation reading) {
-        if (reading.hasLightning()) {
-            return false;
-        }
-        return !now.isBefore(reading.taken().plusSeconds(LIGHTNING_WAIT.seconds()));
+    private static boolean strikesNow(ObservationLog readings) {
+        return readings.latest()
+                .lightningWithin()
+                .filter(at -> at.compareTo(Policy.LIGHTNING_RADIUS) <= 0)
+                .isPresent();
     }
 }

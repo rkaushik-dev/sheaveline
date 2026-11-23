@@ -30,6 +30,8 @@ import java.util.Optional;
  * @param reading the reading
  * @param reasons why it is held
  * @param slowing why it runs slow
+ * @param openHolds the holds the day book still has open on the machine, and whether each may come
+ *     off
  */
 public record HoldOut(
         @LiftCodeText LiftCode lift,
@@ -44,12 +46,14 @@ public record HoldOut(
         @DurationText Duration readingAge,
         ObservationOut reading,
         List<HoldReasonOut> reasons,
-        List<HoldReasonOut> slowing) {
+        List<HoldReasonOut> slowing,
+        List<OpenHoldOut> openHolds) {
 
     /** A hold's shape. */
     public HoldOut {
         reasons = List.copyOf(reasons);
         slowing = List.copyOf(slowing);
+        openHolds = List.copyOf(openHolds);
     }
 
     /**
@@ -58,9 +62,21 @@ public record HoldOut(
      * @param decision the decision
      * @param now the moment it is, which the reading's age is measured from; a reading stamped after
      *     it is no age at all
-     * @return its shape
+     * @return its shape, with no open holds read
      */
     public static HoldOut of(WeatherHold decision, LocalDateTime now) {
+        return of(decision, now, List.of());
+    }
+
+    /**
+     * A hold as the tablet shows it, with the day book's open holds on the machine.
+     *
+     * @param decision the decision
+     * @param now the moment it is
+     * @param openHolds the open holds, already read against the reading
+     * @return its shape
+     */
+    public static HoldOut of(WeatherHold decision, LocalDateTime now, List<OpenHoldOut> openHolds) {
         Observation seen = decision.observation();
         return new HoldOut(
                 decision.lift().code(),
@@ -75,7 +91,8 @@ public record HoldOut(
                 now.isBefore(seen.taken()) ? Duration.ZERO : seen.ageAt(now),
                 ObservationOut.of(seen),
                 shapes(decision.holds()),
-                shapes(decision.slowings()));
+                shapes(decision.slowings()),
+                openHolds);
     }
 
     private static List<HoldReasonOut> shapes(List<Hold> holds) {

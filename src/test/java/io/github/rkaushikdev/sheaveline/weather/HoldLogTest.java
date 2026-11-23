@@ -230,6 +230,39 @@ class HoldLogTest {
     }
 
     @Test
+    void theLightningClockRunsFromTheLastStrikeInsideTheRadius() {
+        HoldRegister register = HoldRegister.of().call(strike(10000), at(11), "K Ostler");
+        HoldRecord bolt = openFor(register, HoldReason.LIGHTNING);
+        ObservationLog readings = ObservationLog.of(
+                List.of(struckAt(at(11, 10), 9000), struckAt(at(11, 25), 20000), observedAt(at(11, 30))));
+        assertThat(register.lightningClearsAt(bolt, readings)).isEqualTo(at(11, 55));
+        assertThat(register.mayClear(bolt, at(11, 50), readings, decision())).isFalse();
+        assertThat(register.mayClear(bolt, at(11, 55), readings, decision())).isTrue();
+    }
+
+    @Test
+    void aStrikeBeyondTheRadiusDoesNotStartTheClockAgain() {
+        HoldRegister register = HoldRegister.of().call(strike(10000), at(11), "K Ostler");
+        HoldRecord bolt = openFor(register, HoldReason.LIGHTNING);
+        Observation far = struckAt(at(11, 20), 30000);
+        ObservationLog readings = ObservationLog.of(List.of(far));
+        assertThat(readings.lastStrikeWithin(Policy.LIGHTNING_RADIUS)).isEmpty();
+        assertThat(register.lightningClearsAt(bolt, readings)).isEqualTo(at(11, 30));
+        assertThat(register.mayClear(bolt, at(11, 30), readings, new WeatherHold(johnPaul(), far)))
+                .isTrue();
+    }
+
+    @Test
+    void aStrikeStillInsideTheRadiusOnTheLatestReadingKeepsTheHoldWhateverTheClock() {
+        HoldRegister register = HoldRegister.of().call(strike(10000), at(11), "K Ostler");
+        HoldRecord bolt = openFor(register, HoldReason.LIGHTNING);
+        Observation stale = struckAt(at(11, 5), 9000);
+        ObservationLog readings = ObservationLog.of(List.of(observedAt(at(11, 1)), stale));
+        assertThat(register.lightningClearsAt(bolt, readings)).isEqualTo(at(11, 35));
+        assertThat(register.mayClear(bolt, at(13), readings, decision())).isFalse();
+    }
+
+    @Test
     void aClosedHoldCannotBeClearedAgain() {
         HoldRegister register = HoldRegister.of(List.of(endedAt(at(11))));
         HoldRecord closed = register.records().get(0);
