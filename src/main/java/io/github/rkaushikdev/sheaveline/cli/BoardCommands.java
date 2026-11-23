@@ -104,7 +104,8 @@ final class BoardCommands {
                 names = "--people",
                 defaultValue = "1",
                 showDefaultValue = Visibility.ALWAYS,
-                description = "How many were involved.")
+                description = "How many were involved. Three or more with somebody transported is a multiple"
+                        + " casualty, and a two hour call.")
         private int people;
 
         @Option(names = "--by", required = true, description = "Who is reporting it.")

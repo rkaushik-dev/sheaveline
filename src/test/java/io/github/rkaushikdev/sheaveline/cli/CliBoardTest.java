@@ -72,6 +72,28 @@ class CliBoardTest {
     }
 
     @Test
+    void threeTransportedFromOneLoadingIsFiledInTwoHours() {
+        Shell.Reply reply = run(
+                "board",
+                "record",
+                "JP",
+                "chair came round the bullwheel with the bar up",
+                "--kind",
+                "loading",
+                "--injury",
+                "transported",
+                "--people",
+                "3",
+                "--by",
+                "D Chin",
+                "--at",
+                AT);
+        assertThat(reply.code()).isZero();
+        assertThat(reply.output()).contains("file by   2025-01-15 13:30", "driven by people");
+        assertThat(run("board", "record", "--help").output()).contains("multiple");
+    }
+
+    @Test
     void aSeriousInjuryShortensTheDeadlineOnARoutineKind() {
         String routine = recorded("loading", "none", "JP", AT).output();
         String hurt = recorded("loading", "admitted", "JP", "2025-01-15 12:30").output();

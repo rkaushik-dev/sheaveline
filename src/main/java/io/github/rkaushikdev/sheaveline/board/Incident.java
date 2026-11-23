@@ -4,6 +4,8 @@ import io.github.rkaushikdev.sheaveline.measures.Duration;
 import io.github.rkaushikdev.sheaveline.plant.LiftCode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
@@ -11,7 +13,8 @@ import java.util.Objects;
  * One thing that happened on one machine, and how long the department has before the board hears
  * about it.
  *
- * <p>Two things decide the deadline and they are read independently. What happened to the machine,
+ * <p>Two things decide the deadline and they are read independently, and a third joins them when
+ * more than a couple of people were hurt. What happened to the machine,
  * and what happened to the people. A deropement with nobody hurt is still a two hour telephone
  * call, because the board wants somebody looking at the tower before the evidence is groomed over.
  * A twisted ankle at the unload ramp of a machine that behaved perfectly is a line in the monthly
@@ -47,6 +50,9 @@ public record Incident(
     /** A line in the monthly return: thirty days. */
     public static final Duration MONTHLY = Duration.ofHours(24 * 30);
 
+    /** This many people involved, with somebody taken to the clinic, is a multiple casualty. */
+    public static final int MULTIPLE_CASUALTIES = 3;
+
     private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm", Locale.ROOT);
 
     /**
@@ -77,31 +83,62 @@ public record Incident(
     }
 
     /**
-     * How long the department has to tell the board: the shorter of the deadline for what the
-     * machine did and the deadline for what happened to the people.
+     * How long the department has to tell the board: the shortest of the deadline for what the
+     * machine did, the deadline for what happened to the people, and the deadline for how many of
+     * them it happened to.
      *
      * @return the deadline
      */
     public Duration deadline() {
-        Duration byKind = kind.deadline();
-        Duration byInjury = injury.deadline();
-        return byKind.compareTo(byInjury) <= 0 ? byKind : byInjury;
+        Duration shortest = kind.deadline();
+        for (Duration one : List.of(injury.deadline(), casualtyDeadline())) {
+            if (one.compareTo(shortest) < 0) {
+                shortest = one;
+            }
+        }
+        return shortest;
     }
 
     /**
-     * Which of the two deadlines decided it.
+     * The deadline for the number of people hurt, read apart from how badly the worst of them was.
      *
-     * @return {@code kind}, {@code injury}, or {@code both} when they are equal
+     * <p>Three people off the same chair to the clinic is a two hour call however each of them is
+     * doing, because the board treats a multiple casualty as an event in its own right. Anything less
+     * than that leaves it to the other two clocks.
+     *
+     * @return {@link #IMMEDIATE} for {@link #MULTIPLE_CASUALTIES} or more people involved in an
+     *     incident where somebody was transported, otherwise {@link #MONTHLY}
+     */
+    public Duration casualtyDeadline() {
+        boolean transported = injury.deadline().compareTo(NEXT_DAY) <= 0;
+        return transported && people >= MULTIPLE_CASUALTIES ? IMMEDIATE : MONTHLY;
+    }
+
+    /**
+     * Which of the deadlines decided it.
+     *
+     * @return {@code kind} or {@code injury} when one alone did, {@code both} when those two are equal
+     *     and shortest, and {@code people} named alongside whichever others it equals when the number
+     *     of casualties set it too
      */
     public String deadlineDriver() {
-        int order = kind.deadline().compareTo(injury.deadline());
-        if (order < 0) {
-            return "kind";
+        Duration wanted = deadline();
+        boolean byKind = kind.deadline().equals(wanted);
+        boolean byInjury = injury.deadline().equals(wanted);
+        boolean byPeople =
+                casualtyDeadline().equals(wanted) && casualtyDeadline().equals(IMMEDIATE);
+        List<String> named = new ArrayList<>();
+        if (byKind && byInjury) {
+            named.add("both");
+        } else if (byKind) {
+            named.add("kind");
+        } else if (byInjury) {
+            named.add("injury");
         }
-        if (order > 0) {
-            return "injury";
+        if (byPeople) {
+            named.add("people");
         }
-        return "both";
+        return String.join(" and ", named);
     }
 
     /**

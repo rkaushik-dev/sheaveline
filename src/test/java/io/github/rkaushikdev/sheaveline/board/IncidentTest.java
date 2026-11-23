@@ -91,6 +91,36 @@ class IncidentTest {
     }
 
     @Test
+    void threePeopleTakenOffOneChairIsATwoHourCallWhateverTheMachineDid() {
+        Incident several = incident(IncidentKind.LOADING, InjuryLevel.TRANSPORTED, 3);
+        assertThat(several.casualtyDeadline()).isEqualTo(Incident.IMMEDIATE);
+        assertThat(several.deadline()).isEqualTo(Incident.IMMEDIATE);
+        assertThat(several.deadlineDriver()).isEqualTo("people");
+        assertThat(several.isImmediate()).isTrue();
+    }
+
+    @Test
+    void twoTransportedOrThreePatchedUpStayOnTheOtherClocks() {
+        Incident two = incident(IncidentKind.LOADING, InjuryLevel.TRANSPORTED, 2);
+        assertThat(two.casualtyDeadline()).isEqualTo(Incident.MONTHLY);
+        assertThat(two.deadline()).isEqualTo(Incident.NEXT_DAY);
+        assertThat(two.deadlineDriver()).isEqualTo("injury");
+        Incident bumped = incident(IncidentKind.LOADING, InjuryLevel.FIRST_AID, 4);
+        assertThat(bumped.deadline()).isEqualTo(Incident.MONTHLY);
+        assertThat(bumped.deadlineDriver()).isEqualTo("both");
+    }
+
+    @Test
+    void theCasualtyClockIsNamedBesideTheOthersItMatches() {
+        assertThat(incident(IncidentKind.DEROPEMENT, InjuryLevel.TRANSPORTED, 3).deadlineDriver())
+                .isEqualTo("kind and people");
+        assertThat(incident(IncidentKind.DEROPEMENT, InjuryLevel.FATAL, 5).deadlineDriver())
+                .isEqualTo("both and people");
+        assertThat(incident(IncidentKind.UNLOADING, InjuryLevel.ADMITTED, 3).deadlineDriver())
+                .isEqualTo("injury and people");
+    }
+
+    @Test
     void aTransportedSkierIsANextDayFiling() {
         Incident hurt = incident(IncidentKind.LOADING, InjuryLevel.TRANSPORTED);
         assertThat(hurt.deadline()).isEqualTo(Incident.NEXT_DAY);
