@@ -1,6 +1,7 @@
 package io.github.rkaushikdev.sheaveline.ropework;
 
 import static io.github.rkaushikdev.sheaveline.Ropes.ROPE;
+import static io.github.rkaushikdev.sheaveline.Ropes.TAKEN;
 import static io.github.rkaushikdev.sheaveline.Ropes.breaks;
 import static io.github.rkaushikdev.sheaveline.Ropes.corrosion;
 import static io.github.rkaushikdev.sheaveline.Ropes.loss;
@@ -232,18 +233,18 @@ class VerdictTest {
     @Test
     void corrosionReachesTheRopeFileUnderTheMagneticTest() {
         RopeFile held = new RopeFile().withMagnetic(magnetic(corrosion(3000, "7"), loss(1800, "4")));
-        assertThat(held.sources()).containsExactly("magnetic test");
-        assertThat(held.worst().detail()).isEqualTo("7% corrosion");
-        assertThat(held.mayRun()).isFalse();
+        assertThat(held.sources(TAKEN)).containsExactly("magnetic test");
+        assertThat(held.worst(TAKEN).detail()).isEqualTo("7% corrosion");
+        assertThat(held.mayRun(TAKEN)).isFalse();
     }
 
     @Test
     void anEmptyRopeFileSaysNothingAgainstTheRope() {
         RopeFile empty = new RopeFile();
-        assertThat(empty.findings()).isEmpty();
-        assertThat(empty.verdict()).isSameAs(WearVerdict.SERVICEABLE);
-        assertThat(empty.mayRun()).isTrue();
-        assertThatThrownBy(empty::worst).isInstanceOf(RopeworkError.class);
+        assertThat(empty.findings(TAKEN)).isEmpty();
+        assertThat(empty.verdict(TAKEN)).isSameAs(WearVerdict.SERVICEABLE);
+        assertThat(empty.mayRun(TAKEN)).isTrue();
+        assertThatThrownBy(() -> empty.worst(TAKEN)).isInstanceOf(RopeworkError.class);
     }
 
     @Test
@@ -252,8 +253,8 @@ class VerdictTest {
                 .withWear(walk(reading(0, "1.376"), reading(1200, "1.310")))
                 .withBreaks(breaks(seen(1200, 4, 7)))
                 .withMagnetic(magnetic(Indication.loss(Length.ofFeet(1800), "7.4")));
-        assertThat(held.sources()).containsExactlyInAnyOrder("diameter", "broken wires", "magnetic test");
-        assertThat(held.verdict()).isSameAs(WearVerdict.MONITOR);
+        assertThat(held.sources(TAKEN)).containsExactlyInAnyOrder("diameter", "broken wires", "magnetic test");
+        assertThat(held.verdict(TAKEN)).isSameAs(WearVerdict.MONITOR);
     }
 
     @Test
@@ -261,9 +262,9 @@ class VerdictTest {
         RopeFile held = new RopeFile()
                 .withWear(walk(reading(0, "1.376"), reading(1200, "1.310")))
                 .withBreaks(breaks(seen(1200, 7, 9)));
-        assertThat(held.verdict()).isSameAs(WearVerdict.CONDEMNED);
-        assertThat(held.mayRun()).isFalse();
-        assertThat(held.worst().verdict()).isSameAs(WearVerdict.CONDEMNED);
+        assertThat(held.verdict(TAKEN)).isSameAs(WearVerdict.CONDEMNED);
+        assertThat(held.mayRun(TAKEN)).isFalse();
+        assertThat(held.worst(TAKEN).verdict()).isSameAs(WearVerdict.CONDEMNED);
     }
 
     @Test
@@ -283,16 +284,16 @@ class VerdictTest {
                         5,
                         ROPE.diameter().scaled(1200)));
         RopeFile held = new RopeFile().withSplices(close);
-        assertThat(held.verdict()).isSameAs(WearVerdict.CONDEMNED);
-        assertThat(held.sources()).contains("splices");
+        assertThat(held.verdict(TAKEN)).isSameAs(WearVerdict.CONDEMNED);
+        assertThat(held.sources(TAKEN)).contains("splices");
     }
 
     @Test
     void aCarriageWithNoReservePutsTheRopeOnWatch() {
         RopeFile held = new RopeFile().withTension(tension(15));
-        assertThat(held.verdict()).isSameAs(WearVerdict.MONITOR);
-        assertThat(held.sources()).contains("tension");
-        assertThat(new RopeFile().withTension(tension(6)).findings()).isEmpty();
+        assertThat(held.verdict(TAKEN)).isSameAs(WearVerdict.MONITOR);
+        assertThat(held.sources(TAKEN)).contains("tension");
+        assertThat(new RopeFile().withTension(tension(6)).findings(TAKEN)).isEmpty();
     }
 
     @Test
@@ -301,7 +302,8 @@ class VerdictTest {
         RopeFile held = new RopeFile().withRetest(schedule);
         assertThat(held.verdict(LocalDate.of(2025, 1, 15))).isSameAs(WearVerdict.CONDEMNED);
         assertThat(held.verdict(LocalDate.of(2024, 6, 1))).isSameAs(WearVerdict.SERVICEABLE);
-        assertThat(held.verdict()).isSameAs(WearVerdict.SERVICEABLE);
+        assertThat(held.verdict(LocalDate.of(2024, 10, 4))).isSameAs(WearVerdict.SERVICEABLE);
+        assertThat(held.worst(LocalDate.of(2024, 10, 5)).detail()).isEqualTo("magnetic test overdue since 2024-10-04");
     }
 
     @Test

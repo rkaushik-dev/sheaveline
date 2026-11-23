@@ -10,11 +10,12 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Everything known about one rope, read together.
+ * Everything known about one rope, read together, and always as at a day.
  *
- * <p>Each source is optional, and a file with nothing in it has nothing against the rope. The magnetic
- * retest schedule is read only when the question names a day, because whether a test is overdue
- * depends on when it is asked.
+ * <p>Each source is optional, and a file with nothing in it has nothing against the rope. There is no
+ * reading of the file without a day. There used to be, and it left the retest schedule unread,
+ * which made a rope three years past its magnetic test look clean to whoever forgot to say when
+ * they were asking.
  *
  * @param wear the latest wear survey
  * @param breaks the latest broken wire survey
@@ -113,31 +114,29 @@ public record RopeFile(
     }
 
     /**
-     * Every row that fires, leaving the retest schedule unread.
-     *
-     * @return the findings, source by source
-     */
-    public List<Finding> findings() {
-        return findings(Optional.empty());
-    }
-
-    /**
      * Every row that fires, as at a day.
      *
      * @param on the day asked about
      * @return the findings, source by source
      */
     public List<Finding> findings(LocalDate on) {
-        return findings(Optional.of(on));
-    }
-
-    /**
-     * The worst verdict in the file, leaving the retest schedule unread.
-     *
-     * @return the verdict
-     */
-    public WearVerdict verdict() {
-        return Verdict.worstOf(findings());
+        Objects.requireNonNull(on, "on");
+        List<Finding> found = new ArrayList<>();
+        wear.ifPresent(survey -> found.addAll(Verdict.wearFindings(survey)));
+        breaks.ifPresent(survey -> found.addAll(Verdict.breakFindings(survey)));
+        magnetic.ifPresent(test -> found.addAll(Verdict.testFindings(test)));
+        splices.ifPresent(register -> register.problems()
+                .forEach(problem -> found.add(new Finding("splices", WearVerdict.CONDEMNED, problem))));
+        if (tension.isPresent() && !tension.get().hasReserve()) {
+            found.add(new Finding("tension", WearVerdict.MONITOR, "carriage has no travel in reserve"));
+        }
+        if (retest.isPresent() && retest.get().isOverdue(on)) {
+            found.add(new Finding(
+                    "magnetic test",
+                    WearVerdict.CONDEMNED,
+                    "magnetic test overdue since " + retest.get().nextDue(on)));
+        }
+        return List.copyOf(found);
     }
 
     /**
@@ -151,15 +150,6 @@ public record RopeFile(
     }
 
     /**
-     * The sources with something against the rope, leaving the retest schedule unread.
-     *
-     * @return the source names, in the order they were read
-     */
-    public Set<String> sources() {
-        return sourcesOf(findings());
-    }
-
-    /**
      * The sources with something against the rope, as at a day.
      *
      * @param on the day asked about
@@ -167,16 +157,6 @@ public record RopeFile(
      */
     public Set<String> sources(LocalDate on) {
         return sourcesOf(findings(on));
-    }
-
-    /**
-     * The first finding at the file's verdict, leaving the retest schedule unread.
-     *
-     * @return the finding
-     * @throws RopeworkError when nothing in the file has anything against the rope
-     */
-    public Finding worst() {
-        return worstOf(findings());
     }
 
     /**
@@ -191,15 +171,6 @@ public record RopeFile(
     }
 
     /**
-     * Whether the rope may carry passengers, leaving the retest schedule unread.
-     *
-     * @return true unless something condemns it
-     */
-    public boolean mayRun() {
-        return verdict().mayRun();
-    }
-
-    /**
      * Whether the rope may carry passengers on a day.
      *
      * @param on the day asked about
@@ -207,22 +178,6 @@ public record RopeFile(
      */
     public boolean mayRun(LocalDate on) {
         return verdict(on).mayRun();
-    }
-
-    private List<Finding> findings(Optional<LocalDate> on) {
-        List<Finding> found = new ArrayList<>();
-        wear.ifPresent(survey -> found.addAll(Verdict.wearFindings(survey)));
-        breaks.ifPresent(survey -> found.addAll(Verdict.breakFindings(survey)));
-        magnetic.ifPresent(test -> found.addAll(Verdict.testFindings(test)));
-        splices.ifPresent(register -> register.problems()
-                .forEach(problem -> found.add(new Finding("splices", WearVerdict.CONDEMNED, problem))));
-        if (tension.isPresent() && !tension.get().hasReserve()) {
-            found.add(new Finding("tension", WearVerdict.MONITOR, "carriage has no travel in reserve"));
-        }
-        if (on.isPresent() && retest.isPresent() && retest.get().isOverdue(on.get())) {
-            found.add(new Finding("magnetic test", WearVerdict.CONDEMNED, "magnetic test overdue"));
-        }
-        return List.copyOf(found);
     }
 
     private static Set<String> sourcesOf(List<Finding> findings) {

@@ -13,6 +13,7 @@ import io.github.rkaushikdev.sheaveline.ropework.MagneticTest;
 import io.github.rkaushikdev.sheaveline.ropework.Splice;
 import io.github.rkaushikdev.sheaveline.ropework.SpliceRegister;
 import io.github.rkaushikdev.sheaveline.ropework.WearSurvey;
+import io.github.rkaushikdev.sheaveline.ropework.WearVerdict;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -177,6 +178,19 @@ class RopefileTest {
                         .orElseThrow())
                 .contains(" 5 ", "condemned")
                 .doesNotContain(" 3 ");
+    }
+
+    @Test
+    void theLastMagneticTestOnThePageSetsWhenTheNextIsDue() {
+        MagneticTest old = MagneticTest.of(ROPE, LocalDate.of(2022, 10, 4), "Wire Rope Diagnostics", "LMA-250");
+        RopeFilePage overdue = page().tests(old).made();
+        assertThat(overdue.file().retest()).isPresent();
+        assertThat(overdue.text())
+                .contains(
+                        "standing                 condemned", "magnetic test: magnetic test overdue since 2024-10-04");
+        RopeFilePage current = page().tests(old, magnetic("2.1")).made();
+        assertThat(current.file().verdict(ON)).isSameAs(WearVerdict.SERVICEABLE);
+        assertThat(page().made().file().retest()).isEmpty();
     }
 
     @Test

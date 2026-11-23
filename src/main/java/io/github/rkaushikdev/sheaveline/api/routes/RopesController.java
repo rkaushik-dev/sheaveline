@@ -5,6 +5,7 @@ import io.github.rkaushikdev.sheaveline.api.Paged;
 import io.github.rkaushikdev.sheaveline.api.Paging;
 import io.github.rkaushikdev.sheaveline.api.Requires;
 import io.github.rkaushikdev.sheaveline.api.Role;
+import io.github.rkaushikdev.sheaveline.api.Settings;
 import io.github.rkaushikdev.sheaveline.api.schemas.FindingOut;
 import io.github.rkaushikdev.sheaveline.api.schemas.RopeFileOut;
 import io.github.rkaushikdev.sheaveline.api.schemas.RopeOut;
@@ -18,7 +19,9 @@ import io.github.rkaushikdev.sheaveline.ropework.Verdict;
 import io.github.rkaushikdev.sheaveline.ropework.WearSurvey;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,6 +44,17 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/ropes")
 @Tag(name = "ropes")
 public class RopesController {
+
+    private final Settings settings;
+
+    /**
+     * The rope routes for one running copy.
+     *
+     * @param settings its settings, which say what day it is
+     */
+    public RopesController(Settings settings) {
+        this.settings = Objects.requireNonNull(settings, "settings");
+    }
 
     /**
      * Every rope on file, on a machine or on the shelf.
@@ -124,7 +138,8 @@ public class RopesController {
     }
 
     /**
-     * What the rope's file says about it, read off the latest walk and the latest broken wire count.
+     * What the rope's file says about it today, read off the latest walk and the latest broken wire
+     * count.
      *
      * @param serial its serial
      * @param work the request's unit of work
@@ -144,11 +159,12 @@ public class RopesController {
         if (!counts.isEmpty()) {
             held = held.withBreaks(counts.getLast());
         }
+        LocalDate today = settings.today();
         return new RopeFileOut(
                 rope.serial(),
-                held.verdict().value(),
-                held.mayRun(),
-                held.sources().stream().sorted().toList(),
-                held.findings().stream().map(FindingOut::of).toList());
+                held.verdict(today).value(),
+                held.mayRun(today),
+                held.sources(today).stream().sorted().toList(),
+                held.findings(today).stream().map(FindingOut::of).toList());
     }
 }

@@ -175,12 +175,14 @@ class SpliceTest {
     void theRopeFileCondemnsOnceForEachProblem() {
         SpliceRegister held = register(splice(0, true), splice(200), splice(4000, Length.ofFeet(60)));
         RopeFile file = new RopeFile().withSplices(held);
-        assertThat(file.findings())
+        assertThat(file.findings(MADE.plusYears(5)))
                 .extracting(Finding::source)
                 .hasSize(held.problems().size())
                 .containsOnly("splices");
-        assertThat(file.findings()).extracting(Finding::detail).containsExactlyElementsOf(held.problems());
-        assertThat(file.verdict()).isSameAs(WearVerdict.CONDEMNED);
+        assertThat(file.findings(MADE.plusYears(5)))
+                .extracting(Finding::detail)
+                .containsExactlyElementsOf(held.problems());
+        assertThat(file.verdict(MADE.plusYears(5))).isSameAs(WearVerdict.CONDEMNED);
     }
 
     @Test

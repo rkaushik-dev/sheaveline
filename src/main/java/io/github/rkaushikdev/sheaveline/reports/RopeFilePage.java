@@ -4,6 +4,7 @@ import io.github.rkaushikdev.sheaveline.plant.HaulRope;
 import io.github.rkaushikdev.sheaveline.ropework.BreakSurvey;
 import io.github.rkaushikdev.sheaveline.ropework.Finding;
 import io.github.rkaushikdev.sheaveline.ropework.MagneticTest;
+import io.github.rkaushikdev.sheaveline.ropework.RetestSchedule;
 import io.github.rkaushikdev.sheaveline.ropework.RopeFile;
 import io.github.rkaushikdev.sheaveline.ropework.SpliceRegister;
 import io.github.rkaushikdev.sheaveline.ropework.Verdict;
@@ -96,12 +97,24 @@ public record RopeFilePage(
     }
 
     /**
-     * The verdict, read off the most recent of each kind of survey and the splice register.
+     * The verdict, read off the most recent of each kind of survey and the splice register, with the
+     * next magnetic test due off the last one on the page.
+     *
+     * <p>A rope with no magnetic test on the page has no retest read against it, because the page
+     * cannot tell a rope that was never tested from one whose tests were filed before the department
+     * kept them here.
      *
      * @return the rope file
      */
     public RopeFile file() {
-        return new RopeFile(latest(wear), latest(breaks), latest(tests), splices, Optional.empty(), Optional.empty());
+        Optional<MagneticTest> last = latest(tests);
+        return new RopeFile(
+                latest(wear),
+                latest(breaks),
+                last,
+                splices,
+                Optional.empty(),
+                last.map(test -> new RetestSchedule(rope, test.taken())));
     }
 
     /**
