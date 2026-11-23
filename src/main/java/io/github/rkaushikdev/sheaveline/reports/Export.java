@@ -3,8 +3,12 @@ package io.github.rkaushikdev.sheaveline.reports;
 import io.github.rkaushikdev.sheaveline.board.Incident;
 import io.github.rkaushikdev.sheaveline.ops.StopEvent;
 import io.github.rkaushikdev.sheaveline.plant.FilingNumber;
+import io.github.rkaushikdev.sheaveline.ropework.BreakLimits;
+import io.github.rkaushikdev.sheaveline.ropework.BreakObservation;
+import io.github.rkaushikdev.sheaveline.ropework.BreakSurvey;
 import io.github.rkaushikdev.sheaveline.ropework.DiameterReading;
 import io.github.rkaushikdev.sheaveline.ropework.WearSurvey;
+import io.github.rkaushikdev.sheaveline.ropework.WearVerdict;
 import io.github.rkaushikdev.sheaveline.util.Decimals;
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -81,8 +85,23 @@ public final class Export {
             "wear",
             List.of("rope", "taken", "inspector", "station_mils", "crowns_mils", "valleys_mils", "percent_of_nominal"));
 
+    /** One row a station where broken wires were counted. */
+    public static final Sheet BREAKS = new Sheet(
+            "breaks",
+            List.of(
+                    "rope",
+                    "taken",
+                    "inspector",
+                    "station_mils",
+                    "one_lay",
+                    "six_lays",
+                    "valleys",
+                    "at_splice",
+                    "verdict",
+                    "over"));
+
     /** Every sheet, by the name it is asked for by. */
-    public static final Map<String, Sheet> SHEETS = sheets(DAYS, STOPS, INCIDENTS, WEAR);
+    public static final Map<String, Sheet> SHEETS = sheets(DAYS, STOPS, INCIDENTS, WEAR, BREAKS);
 
     private static final DateTimeFormatter TO_THE_SECOND =
             DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss", Locale.ROOT);
@@ -206,6 +225,31 @@ public final class Export {
     }
 
     /**
+     * Broken wire counts as rows: one row a counted station, with what the station is over and the
+     * verdict that costs, read against the rope's own allowance.
+     *
+     * @param surveys the counts
+     * @return the rows of {@link #BREAKS}
+     */
+    public static Iterable<List<Object>> breakRows(Iterable<BreakSurvey> surveys) {
+        return () -> stream(surveys)
+                .flatMap(survey -> survey.observations().stream().map(seen -> breakRow(survey, seen)))
+                .iterator();
+    }
+
+    /**
+     * Write broken wire counts, a row a counted station.
+     *
+     * @param out where the text goes
+     * @param surveys the counts
+     * @return how many rows were written
+     * @throws IOException when the destination cannot be written
+     */
+    public static int writeBreaks(Appendable out, Iterable<BreakSurvey> surveys) throws IOException {
+        return BREAKS.write(out, breakRows(surveys));
+    }
+
+    /**
      * Write caliper walks, a row a reading.
      *
      * @param out where the text goes
@@ -226,6 +270,25 @@ public final class Export {
                 reading.acrossCrowns().mils(),
                 reading.acrossValleys().mils(),
                 Decimals.fixed(survey.percentOfNominal(reading), 2));
+    }
+
+    private static List<Object> breakRow(BreakSurvey survey, BreakObservation seen) {
+        BreakLimits allowed = survey.limits();
+        List<String> over = seen.breaches(allowed);
+        WearVerdict verdict = !over.isEmpty()
+                ? WearVerdict.CONDEMNED
+                : seen.exceeds(allowed.watchLevel()) ? WearVerdict.MONITOR : WearVerdict.SERVICEABLE;
+        return List.of(
+                survey.rope().serial().toString(),
+                survey.taken().toString(),
+                survey.inspector(),
+                seen.station().mils(),
+                seen.inOneLay(),
+                seen.inSixLays(),
+                seen.valleyBreaks(),
+                flag(seen.atSplice()),
+                verdict.value(),
+                String.join("; ", over));
     }
 
     private static int flag(boolean value) {

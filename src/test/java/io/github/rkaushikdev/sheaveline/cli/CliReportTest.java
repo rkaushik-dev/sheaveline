@@ -5,13 +5,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.rkaushikdev.sheaveline.Hill;
 import io.github.rkaushikdev.sheaveline.Office;
 import io.github.rkaushikdev.sheaveline.Office.Machine;
+import io.github.rkaushikdev.sheaveline.measures.Length;
 import io.github.rkaushikdev.sheaveline.ops.CheckItem;
 import io.github.rkaushikdev.sheaveline.ops.CheckOutcome;
 import io.github.rkaushikdev.sheaveline.ops.CheckResult;
 import io.github.rkaushikdev.sheaveline.ops.DayLog;
 import io.github.rkaushikdev.sheaveline.ops.PreOpSheet;
+import io.github.rkaushikdev.sheaveline.plant.HaulRope;
 import io.github.rkaushikdev.sheaveline.plant.Lift;
 import io.github.rkaushikdev.sheaveline.reports.Forms;
+import io.github.rkaushikdev.sheaveline.ropework.BreakObservation;
+import io.github.rkaushikdev.sheaveline.ropework.BreakSurvey;
 import io.github.rkaushikdev.sheaveline.schedule.OperatingWindow;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -154,11 +158,36 @@ class CliReportTest {
 
     @Test
     void everySheetExportsAtLeastItsHeading() {
-        for (String sheet : List.of("days", "stops", "incidents", "wear")) {
+        for (String sheet : List.of("days", "stops", "incidents", "wear", "breaks")) {
             Shell.Reply reply = export(sheet);
             assertThat(reply.code()).as(sheet).isZero();
             assertThat(reply.lines().get(0)).as(sheet).contains(",");
         }
+    }
+
+    @Test
+    void theBreakCountsInTheSeasonComeOutAndTheOnesOutsideItDoNot() {
+        HaulRope rope = Hill.johnPaul().rope();
+        Shell.change(database, work -> {
+            work.breakSurveys()
+                    .add(BreakSurvey.of(
+                            rope,
+                            LocalDate.of(2025, 1, 15),
+                            "R Halvorsen",
+                            List.of(new BreakObservation(Length.ofFeet(1200), 7, 9))));
+            work.breakSurveys()
+                    .add(BreakSurvey.of(
+                            rope,
+                            LocalDate.of(2025, 8, 1),
+                            "R Halvorsen",
+                            List.of(new BreakObservation(Length.ofFeet(600), 1, 1))));
+        });
+        List<String> lines = written(export("breaks").output());
+        assertThat(lines).hasSize(2);
+        assertThat(lines.get(0)).startsWith("rope,taken,inspector,station_mils");
+        assertThat(lines.get(1))
+                .startsWith("FAT-2019-04412,2025-01-15,R Halvorsen,14400000,7,9,0,0,condemned")
+                .endsWith("7 in one lay against 6");
     }
 
     @Test

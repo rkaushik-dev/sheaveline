@@ -15,6 +15,8 @@ import io.github.rkaushikdev.sheaveline.ops.StopEvent;
 import io.github.rkaushikdev.sheaveline.ops.StopKind;
 import io.github.rkaushikdev.sheaveline.plant.FilingNumber;
 import io.github.rkaushikdev.sheaveline.plant.HaulRope;
+import io.github.rkaushikdev.sheaveline.ropework.BreakObservation;
+import io.github.rkaushikdev.sheaveline.ropework.BreakSurvey;
 import io.github.rkaushikdev.sheaveline.ropework.DiameterReading;
 import io.github.rkaushikdev.sheaveline.ropework.WearSurvey;
 import java.io.IOException;
@@ -177,6 +179,30 @@ class ExportTest {
         assertThat(out.rows().get(1).get(5)).isEqualTo("1350");
     }
 
+    @Test
+    void aBreakCountBecomesOneRowAStationWithWhatItIsOver() throws IOException {
+        BreakSurvey counted = BreakSurvey.of(
+                ROPE,
+                ON,
+                "R Halvorsen",
+                List.of(
+                        new BreakObservation(Length.ofFeet(0), 3, 3, 0, true),
+                        new BreakObservation(Length.ofFeet(1200), 4, 7),
+                        new BreakObservation(Length.ofFeet(2400), 1, 1)));
+        Written out = written(handle -> Export.writeBreaks(handle, List.of(counted)));
+        assertThat(out.count()).isEqualTo(3);
+        Map<String, String> splice = body(Export.BREAKS.columns(), out.rows().get(1));
+        assertThat(splice)
+                .containsEntry("rope", "FAT-2019-04412")
+                .containsEntry("station_mils", "0")
+                .containsEntry("at_splice", "1")
+                .containsEntry("verdict", "condemned")
+                .containsEntry("over", "3 in one lay at the splice against 2");
+        Map<String, String> watched = body(Export.BREAKS.columns(), out.rows().get(2));
+        assertThat(watched).containsEntry("verdict", "monitor").containsEntry("over", "");
+        assertThat(body(Export.BREAKS.columns(), out.rows().get(3))).containsEntry("verdict", "serviceable");
+    }
+
     /** A spreadsheet reads {@code 1.354"} as a date, and then the column is text. */
     @Test
     void aDiameterNeverLeavesWithAnInchMarkOnIt() throws IOException {
@@ -188,7 +214,7 @@ class ExportTest {
 
     @Test
     void everySheetIsReachableByName() {
-        assertThat(Export.SHEETS.keySet()).containsExactlyInAnyOrder("days", "incidents", "stops", "wear");
+        assertThat(Export.SHEETS.keySet()).containsExactlyInAnyOrder("days", "incidents", "stops", "wear", "breaks");
         assertThat(Export.SHEETS)
                 .allSatisfy((name, sheet) -> assertThat(sheet.name()).isEqualTo(name));
     }

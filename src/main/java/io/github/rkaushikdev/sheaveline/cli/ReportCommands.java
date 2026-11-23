@@ -13,6 +13,7 @@ import io.github.rkaushikdev.sheaveline.reports.FiledIncident;
 import io.github.rkaushikdev.sheaveline.reports.Gather;
 import io.github.rkaushikdev.sheaveline.reports.Morning;
 import io.github.rkaushikdev.sheaveline.reports.SeasonSummary;
+import io.github.rkaushikdev.sheaveline.ropework.BreakSurvey;
 import io.github.rkaushikdev.sheaveline.ropework.WearSurvey;
 import io.github.rkaushikdev.sheaveline.schedule.Season;
 import java.io.IOException;
@@ -28,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.function.Function;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Help.Visibility;
 import picocli.CommandLine.Mixin;
@@ -74,18 +76,22 @@ final class ReportCommands {
                 }
                 yield Export.writeIncidents(handle, incidents);
             }
-            default -> {
-                List<WearSurvey> surveys = new ArrayList<>();
-                for (HaulRope rope : work.ropes().all()) {
-                    for (WearSurvey one : work.wearSurveys().forRope(rope)) {
-                        if (season.covers(one.taken())) {
-                            surveys.add(one);
-                        }
-                    }
-                }
-                yield Export.writeWear(handle, surveys);
-            }
+            case "breaks" ->
+                Export.writeBreaks(handle, onRopes(work, season, work.breakSurveys()::forRope, BreakSurvey::taken));
+            default -> Export.writeWear(handle, onRopes(work, season, work.wearSurveys()::forRope, WearSurvey::taken));
         };
+    }
+
+    /** Whatever was taken on every rope on file during the season, rope by rope and oldest first. */
+    private static <T> List<T> onRopes(
+            UnitOfWork work, Season season, Function<HaulRope, List<T>> taken, Function<T, LocalDate> day) {
+        List<T> found = new ArrayList<>();
+        for (HaulRope rope : work.ropes().all()) {
+            taken.apply(rope).stream()
+                    .filter(one -> season.covers(day.apply(one)))
+                    .forEach(found::add);
+        }
+        return found;
     }
 
     /** A stop that ran overnight belongs to two days and to one row. */
