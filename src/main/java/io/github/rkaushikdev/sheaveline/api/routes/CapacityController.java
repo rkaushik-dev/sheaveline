@@ -131,11 +131,12 @@ public class CapacityController {
     }
 
     /**
-     * The line walked under some snow at some tension.
+     * The line walked under some snow at some tension, with whatever ice the rope is carrying.
      *
      * @param code the machine
      * @param snow the snow depth
      * @param tension the haul rope tension
+     * @param ice the ice on the rope, measured out from its surface
      * @param look the request's lookup
      * @return the verdict, the worst clearance, and what the walk found
      */
@@ -145,9 +146,10 @@ public class CapacityController {
             @PathVariable String code,
             @RequestParam(defaultValue = "0 ft") String snow,
             @RequestParam(defaultValue = "34500 lb") String tension,
+            @RequestParam(defaultValue = "0 in") String ice,
             Lookup look) {
         Lift lift = look.lift(code);
-        SagModel sag = new SagModel(lineWeightOf(lift), Load.parse(tension));
+        SagModel sag = new SagModel(lineWeightOf(lift, ice), Load.parse(tension));
         LineGeometry walk = new LineGeometry(lift, sag, Length.parse(snow));
         ClearanceReading worst = walk.worstClearance();
         return new GeometryOut(
@@ -155,6 +157,7 @@ public class CapacityController {
                 walk.verdict().mayRun(),
                 walk.snow(),
                 sag.tension(),
+                Length.parse(ice),
                 worst.available(),
                 worst.margin(),
                 worst.station(),
@@ -179,7 +182,9 @@ public class CapacityController {
         Lift lift = look.lift(code);
         LocalDate today = settings.today();
         EvacuationProfile profile = new EvacuationProfile(
-                lift, new SagModel(lineWeightOf(lift), Load.parse(body.tension())), Length.parse(body.snow()));
+                lift,
+                new SagModel(lineWeightOf(lift, body.ice()), Load.parse(body.tension())),
+                Length.parse(body.snow()));
         TeamPool pool =
                 TeamPool.of(body.teams().stream().map(one -> team(one, today)).toList());
         return StagingOut.of(Staging.stage(profile, pool, Length.ZERO, today, body.seatsFilled()));
@@ -191,11 +196,8 @@ public class CapacityController {
     }
 
     /** The weight per foot of the loaded line: the rope, with a loaded carrier at every spacing. */
-    private static LoadPerFoot lineWeightOf(Lift lift) {
-        return Catenary.lineWeight(
-                lift.rope().spec().weight(),
-                lift.carriers().onLine().get(0).gross(),
-                LineSpacing.of(lift).spacing());
+    private static LoadPerFoot lineWeightOf(Lift lift, String ice) {
+        return Catenary.loadedLine(lift, LineSpacing.of(lift).spacing(), Length.parse(ice));
     }
 
     /** A team off the truck, its members numbered after it, trained until tomorrow. */

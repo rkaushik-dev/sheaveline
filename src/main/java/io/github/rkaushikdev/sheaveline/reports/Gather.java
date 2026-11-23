@@ -103,9 +103,7 @@ public final class Gather {
 
     /** The line walked on bare ground at the tension the caller says the rope is carrying. */
     private static GeometryVerdict lineVerdict(Lift lift, Load tension) {
-        LineSpacing spacing = LineSpacing.of(lift);
-        LoadPerFoot weight = Catenary.lineWeight(
-                lift.rope().spec().weight(), lift.carriers().onLine().getFirst().gross(), spacing.spacing());
+        LoadPerFoot weight = Catenary.loadedLine(lift, LineSpacing.of(lift).spacing(), BARE_GROUND);
         return new LineGeometry(lift, new SagModel(weight, tension), BARE_GROUND).verdict();
     }
 

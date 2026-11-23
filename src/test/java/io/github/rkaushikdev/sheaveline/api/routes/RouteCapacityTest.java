@@ -7,6 +7,7 @@ import io.github.rkaushikdev.sheaveline.Hill;
 import io.github.rkaushikdev.sheaveline.api.Http;
 import io.github.rkaushikdev.sheaveline.api.Settings;
 import io.github.rkaushikdev.sheaveline.api.Wire;
+import io.github.rkaushikdev.sheaveline.measures.Length;
 import io.github.rkaushikdev.sheaveline.persistence.UnitOfWork;
 import java.util.List;
 import java.util.stream.StreamSupport;
@@ -166,6 +167,22 @@ class RouteCapacityTest {
         JsonNode slack = body("/lifts/JP/geometry?snow=6+ft&tension=12000+lb");
         assertThat(slack.get("worst_clearance").asText())
                 .isLessThan(tight.get("worst_clearance").asText());
+    }
+
+    @Test
+    void iceOnTheRopeBringsTheLineDown() {
+        JsonNode bare = body("/lifts/JP/geometry?snow=6+ft");
+        JsonNode iced = body("/lifts/JP/geometry?snow=6+ft&ice=1+in");
+        assertThat(Length.parse(iced.get("worst_clearance").asText()))
+                .isLessThan(Length.parse(bare.get("worst_clearance").asText()));
+        assertThat(Length.parse(iced.get("ice").asText())).isEqualTo(Length.ofInches(1));
+        assertThat(Length.parse(bare.get("ice").asText())).isEqualTo(Length.ZERO);
+    }
+
+    @Test
+    void iceThinnerThanNothingIsRefused() {
+        Http.Answer reply = client.get("/lifts/JP/geometry?ice=-1+in", Wire.headers());
+        assertThat(reply.status()).isGreaterThanOrEqualTo(400).isLessThan(500);
     }
 
     @Test

@@ -3,9 +3,11 @@ package io.github.rkaushikdev.sheaveline.line;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.github.rkaushikdev.sheaveline.Hill;
 import io.github.rkaushikdev.sheaveline.measures.Length;
 import io.github.rkaushikdev.sheaveline.measures.Load;
 import io.github.rkaushikdev.sheaveline.measures.LoadPerFoot;
+import io.github.rkaushikdev.sheaveline.plant.Lift;
 import io.github.rkaushikdev.sheaveline.plant.Span;
 import io.github.rkaushikdev.sheaveline.plant.Support;
 import io.github.rkaushikdev.sheaveline.util.Decimals;
@@ -186,6 +188,35 @@ class CatenaryTest {
     void carriersWithNoSpacingHaveNoShare() {
         assertThatThrownBy(() -> Catenary.lineWeight(ROPE, Load.ofPounds(1090), Length.ofFeet(0)))
                 .isInstanceOf(LineError.class);
+    }
+
+    @Test
+    void aSleeveOfIceWeighsWhatItsVolumeOfGlazeWeighs() {
+        Length rope = Length.ofInches("1.378");
+        assertThat(Catenary.iceWeight(rope, Length.ofInches("0.5")).poundsPerFoot())
+                .isEqualByComparingTo("1.168");
+        assertThat(Catenary.iceWeight(rope, Length.ofInches("1")).poundsPerFoot())
+                .isEqualByComparingTo("2.957");
+        assertThat(Catenary.iceWeight(rope, Length.ZERO).millipoundsPerFoot()).isZero();
+        assertThatThrownBy(() -> Catenary.iceWeight(rope, Length.ofInches("-0.1")))
+                .isInstanceOf(LineError.class)
+                .hasMessage("ice on a rope is not thinner than nothing");
+    }
+
+    @Test
+    void aMachinesLoadedLineIsItsRopeItsCarriersAndItsIce() {
+        Lift lift = Hill.johnPaul();
+        Length spacing = Length.ofFeet(109);
+        LoadPerFoot bare = Catenary.loadedLine(lift, spacing, Length.ZERO);
+        assertThat(bare)
+                .isEqualTo(Catenary.lineWeight(
+                        lift.rope().spec().weight(),
+                        lift.carriers().onLine().getFirst().gross(),
+                        spacing));
+        LoadPerFoot iced = Catenary.loadedLine(lift, spacing, Length.ofInches("0.5"));
+        assertThat(iced.millipoundsPerFoot() - bare.millipoundsPerFoot()).isEqualTo(1168);
+        assertThat(new SagModel(iced, Load.ofPounds(34500)).sagOver(Length.ofFeet(600)))
+                .isGreaterThan(new SagModel(bare, Load.ofPounds(34500)).sagOver(Length.ofFeet(600)));
     }
 
     @Test

@@ -131,6 +131,16 @@ class CliEvacTest {
     }
 
     @Test
+    void iceOnTheRopeIsTakenIntoTheStaging() {
+        Shell.Reply bare = staging("--team", "alpha:24:200", "--team", "bravo:24:200");
+        Shell.Reply iced = staging("--team", "alpha:24:200", "--team", "bravo:24:200", "--ice", "2 in");
+        assertThat(iced.code()).isEqualTo(bare.code());
+        assertThat(iced.output()).contains("2 teams, 84 carriers").isNotEqualTo(bare.output());
+        assertThat(staging("--team", "alpha:24:200", "--ice", "-1 in").code()).isNotZero();
+        assertThat(run("evac", "staging", "--help").output()).contains("--ice");
+    }
+
+    @Test
     void aTeamWrittenTheWrongWay() {
         Shell.Reply reply = staging("--team", "alpha 24 200");
         assertThat(reply.code()).isEqualTo(1);

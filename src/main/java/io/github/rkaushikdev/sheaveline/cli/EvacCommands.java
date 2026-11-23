@@ -52,10 +52,8 @@ final class EvacCommands {
 
     private EvacCommands() {}
 
-    private static SagModel sag(Lift lift, String tension) {
-        LineSpacing spacing = LineSpacing.of(lift);
-        LoadPerFoot weight = Catenary.lineWeight(
-                lift.rope().spec().weight(), lift.carriers().onLine().getFirst().gross(), spacing.spacing());
+    private static SagModel sag(Lift lift, String tension, String ice) {
+        LoadPerFoot weight = Catenary.loadedLine(lift, LineSpacing.of(lift).spacing(), Length.parse(ice));
         return new SagModel(weight, Load.parse(tension));
     }
 
@@ -230,6 +228,13 @@ final class EvacCommands {
         @Option(names = "--tension", defaultValue = "34500 lb", showDefaultValue = Visibility.ALWAYS)
         private String tension;
 
+        @Option(
+                names = "--ice",
+                defaultValue = "0 in",
+                showDefaultValue = Visibility.ALWAYS,
+                description = "Ice on the rope, measured out from its surface. It lowers every carrier.")
+        private String ice;
+
         @Mixin
         private Common.DayOption on;
 
@@ -240,7 +245,7 @@ final class EvacCommands {
             try (UnitOfWork work = console.work()) {
                 lift = Common.machine(work, code);
             }
-            EvacuationProfile profile = new EvacuationProfile(lift, sag(lift, tension), Length.parse(snow));
+            EvacuationProfile profile = new EvacuationProfile(lift, sag(lift, tension, ice), Length.parse(snow));
             TeamPool pool =
                     TeamPool.of(teams.stream().map(one -> team(one, when)).toList());
             StagingPlan plan = Staging.stage(profile, pool, new Length(0), when, seats);

@@ -19,12 +19,14 @@ import java.util.List;
  * @param seatsFilled people in each carrier, three when not sent
  * @param snow the snow depth, two feet when not sent
  * @param tension the haul rope tension, 34,500 lb when not sent
+ * @param ice the ice on the rope, measured out from its surface, none when not sent
  */
 public record StagingIn(
         @NotNull @Size(min = 1, max = 12) List<@NotNull @Valid TeamIn> teams,
         @Min(1) @Max(8) Integer seatsFilled,
         String snow,
-        String tension) {
+        String tension,
+        String ice) {
 
     /** People in each carrier when nobody says. */
     public static final int DEFAULT_SEATS_FILLED = 3;
@@ -35,10 +37,14 @@ public record StagingIn(
     /** The haul rope tension when nobody says. */
     public static final String DEFAULT_TENSION = "34500 lb";
 
+    /** The ice on the rope when nobody says. */
+    public static final String DEFAULT_ICE = "0 in";
+
     /** A plan's conditions, defaulted where nobody said. */
     public StagingIn {
         seatsFilled = seatsFilled == null ? DEFAULT_SEATS_FILLED : seatsFilled;
         snow = snow == null ? DEFAULT_SNOW : snow;
         tension = tension == null ? DEFAULT_TENSION : tension;
+        ice = ice == null ? DEFAULT_ICE : ice;
     }
 }
